@@ -1,3 +1,4 @@
+import sys
 import tango
 
 class LoggerDumper:
@@ -12,6 +13,45 @@ class LoggerDumper:
         self.devList = []
         self.lockFile = "lock.lock"
         self.locked = False
+
+    def readConfig(self):
+        self.devList = []
+        if (len(sys.argv) <= 1):
+            self.readConfigFromIni()
+            return
+        if (sys.argv[1].endswith(".ini")):
+            self.iniFileName = sys.argv[1]
+            self.readConfigFromIni()
+            return
+
+        d = Device()
+        try:
+            d.folder = "ADC_0"
+            d.host = sys.argv[1]
+            d.port = sys.argv[2]
+            d.dev = sys.argv[3]
+            d.avg = int(sys.argv[4])
+            outRootDir = sys.argv[5]
+        except:
+            pass
+
+        self.devList.append(d)
+        LOGGER.log(Level.FINE, "Added {0}", d.getName());
+}
+
+
+
+if __name__ == '__main__':
+    lgd = LoggerDumper()
+    try:
+        lgd.readConfig()
+        lgd.process()
+    except:
+        LOGGER.log(Level.SEVERE, "Exception in LoggerDumper")
+        LOGGER.log(Level.INFO, "Exception info", ex)
+
+
+
 
     def makeFolder(self):
         if (not outRootDir.endsWith("\\")):
@@ -250,36 +290,6 @@ class LoggerDumper:
         LOGGER.log(Level.FINE, "Directory unlocked");
     }
 
-    void readConfig(String[] args) {
-
-        devList = new ArrayList<>();
-
-        if (args.length <= 0) {
-            readConfigFromIni();
-            return;
-        }
-
-        if (args[0].endsWith(".ini")) {
-            iniFileName = args[0];
-            readConfigFromIni();
-            return;
-        }
-
-        Device d = new Device();
-        try {
-            d.folder = "ADC_0";
-            d.host = args[0];
-            d.port = args[1];
-            d.dev = args[2];
-            d.avg = Integer.parseInt(args[3]);
-            outRootDir = args[4];
-        }
-        catch (Exception ex) {
-        }
-
-        devList.add(d);
-        LOGGER.log(Level.FINE, "Added {0}", d.getName());
-}
 
     private void readConfigFromIni() {
         try {
@@ -463,11 +473,3 @@ class LoggerDumper:
     }
 
 
-if __name__ == '__main__':
-    lgd = LoggerDumper()
-    try:
-        lgd.readConfig(args)
-        lgd.process()
-    except:
-        LOGGER.log(Level.SEVERE, "Exception in LoggerDumper")
-        LOGGER.log(Level.INFO, "Exception info", ex)
