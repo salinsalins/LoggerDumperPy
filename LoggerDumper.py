@@ -433,7 +433,6 @@ if __name__ == '__main__':
         lockFile.delete()
         locked = False
         self.logger.log(logging.DEBUG, "Directory unlocked")
-    }
 
 
 class Device :
