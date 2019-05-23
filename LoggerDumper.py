@@ -59,7 +59,6 @@ class LoggerDumper:
         self.logger.log(logging.DEBUG, "ADC %s", d.getName())
 
 
-
     def restoreSettings(self, folder=''):
         try :
             fullName = os.path.join(str(folder), self.configFileName)
@@ -127,13 +126,9 @@ class LoggerDumper:
         for d in self.devList :
             try :
                 d.init()
-                d.timeout = time.time()
-                d.active = True
                 count += 1
             except :
                 self.logger.log(logging.INFO, "ADC %s initialization error", d.getName())
-                d.active = False
-                d.timeout = time.time() + 10000
         if count == 0 :
             self.logger.log(logging.WARNING, "No active ADC found")
             return
@@ -148,19 +143,17 @@ class LoggerDumper:
                             if d.timeout > time.time():
                                 continue
                             d.init()
-                            d.timeout = time.time()
-                            d.active = True
                             self.logger.log(logging.DEBUG, "ADC %s activated", d.fullName())
                         shotNew = d.readShot()
                         if shotNew <= d.shot:
-                            if not locked:
+                            if not self.locked:
                                 break
                             else:
                                 continue
                         d.shot = shotNew
                         print("\n%s New Shot %d\n", self.timeStamp(), shotNew)
 
-                        if not locked:
+                        if not self.locked:
                             self.makeFolder()
                             self.lockDir(self.outFolder)
                             logFile = self.openLogFile(self.outFolder)
@@ -175,12 +168,12 @@ class LoggerDumper:
                         print("Saving from " + d.fullName())
                         self.dumpADCDataAndLog(d, zipFile, logFile, d.folder)
                         zipFile.flush()
-                    except DevFailed :
+                    except :
                         d.active = False
                         d.timeout = time.time() + 10000
                         self.logger.log(logging.INFO, "ADC %s inactive, timeout for 10 seconds", d.fullName())
 
-                if locked:
+                if self.locked:
                     zipFile.flush()
                     zipFile.close()
                     # write zip file name
@@ -205,7 +198,7 @@ if __name__ == '__main__':
         lgd.process()
     except:
         lgd.logger.log(logging.CRIRICAL, "Exception in LoggerDumper")
-        lgd.logger.log(logging.INFO, "Exception info", ex)
+        lgd.printExceptionInfo()
 
 
 
@@ -444,18 +437,25 @@ if __name__ == '__main__':
 
 
 class Device :
-    def __init__(self, host='', port=10000, dev='', avg=100, folder="ADC_0"):
+    def __init__(self, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder="ADC_0"):
         self.host = host
         self.port = port
         self.dev = dev
         self.folder = folder
         self.avg = avg
         self.active = False
-        self.timeout = 0
         self.shot = -8888
         self.timeout = time.time()
+        self.devProxy = None
 
-    def getName(self:
+    def getName(self) :
         return self.host + ":" + self.port + "/" + self.dev
 
+    def init(self):
+        try:
+            self.devProxy = tango.DeviceProxy(self.getName())
+            self.active = True
+        except:
+            self.active = False
+            self.timeout = time.time() + 10000
 
