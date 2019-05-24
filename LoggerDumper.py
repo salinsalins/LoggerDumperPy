@@ -169,7 +169,7 @@ class LoggerDumper:
                             self.zipFile = self.openZipFile(self.outFolder)
 
                         print("Saving from " + d.fullName())
-                        self.dumpADCDataAndLog(d, self.zipFile, self.logFile, d.folder)
+                        self.dumpDataAndLog(d, self.zipFile, self.logFile, d.folder)
                     except :
                         d.active = False
                         d.timeout = time.time() + 10000
@@ -253,7 +253,7 @@ class LoggerDumper:
         return datetime.datetime.today().strftime('%H:%M:%S')
 
 
-    def dumpADCDataAndLog(self, adc, zipFile, logFile, folder):
+    def dumpDataAndLog(self, adc, zipFile, logFile, folder):
     	atts = adc.devProxy.get_attribute_info()
         retryCount = 0
         for i in range(len(atts)):
@@ -320,6 +320,7 @@ class LoggerDumper:
             ns = 0.0
         zipFile.flush()
 
+
     def saveSignalData(self, zipFile, sig, folder):
         entryName = folder + sig.name + Constants.EXTENSION
         zipFile.putNextEntry(entryName)
@@ -330,6 +331,7 @@ class LoggerDumper:
         self.saveToZip(zipFile, sig.x.data, sig.y.data, saveAvg)
         zipFile.flush()
         zipFile.closeEntry()
+
 
     def saveSignalProp(self, zipFile, sig, folder):
         zipFile.flush()
@@ -342,6 +344,7 @@ class LoggerDumper:
             for prop in propList:
                 zipFile.writestr(entryName,"%s\r\n" % prop)
         zipFile.closeEntry()
+
 
     def saveSignalLog(self, logFile, sig):
         #// Get signal label = default mark name
@@ -394,6 +397,7 @@ class LoggerDumper:
 
                 fmt = '; ' + Constants.LOG_FORMAT
                 self.logFile.write(fmt % (logMarkName, logMarkValue, unit))
+
 
 if __name__ == '__main__':
     lgd = LoggerDumper()
