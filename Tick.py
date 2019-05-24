@@ -26,15 +26,5 @@ class Tick:
         return ((Tick)tick).name.equals(name)
 
 
-    hashCode():
-        return name.hashCode()
-    }
-
-    toString():
-        return String.format("Tick: %s : %g : %g", name, start, length)
-    }
-
-    name():
-        return name
-    }
-}
+    def toString(self):
+        return "Tick: %s : %g : %g" % (self.name, self.start, self.length)
