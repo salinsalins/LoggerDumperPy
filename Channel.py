@@ -1,4 +1,3 @@
-
 class Channel:
     adc = None
     devAttr = None
@@ -94,4 +93,5 @@ class Channel:
                 tick = Tick(self, propName.replace(Constants.START_SUFFIX, ""))
                 if tick.length > 0.0 and tick.name != '':
                     tickList.append(tick)
+
         return tickList
