@@ -11,6 +11,169 @@ import numpy as np
 import tango
 
 
+class Constants:
+    DEFAULT_HOST = "192.168.161.74"
+    DEFAULT_PORT = "10000"
+    DEFAULT_DEV = "binp/nbi/adc0"
+    DEFAULT_AVG = 100
+
+    DEFAULT_MARK_X_VALUE = None
+    DEFAULT_MARK_Y_VALUE = 0.0
+
+    PROP_VAL_DELIMITER = " = "
+    PROP_VAL_DELIMITER_OLD = ": "
+
+    ZERO_NAME = "zero"
+    ZERO_MARK_NAME = "Zero"
+    MARK_NAME = "mark"
+
+    START_SUFFIX = "_start"
+    LENGTH_SUFFIX = "_length"
+    NAME_SUFFIX = "_name"
+
+    UNIT = "unit"
+    LABEL = "label"
+    DISPLAY_UNIT = "display_unit"
+    SAVE_DATA = "save_data"
+    SAVE_AVG = "save_avg"
+    SAVE_LOG = "save_log"
+    SHOT_ID = "Shot_id"
+
+    CHAN = "chan"
+    PARAM = "param"
+
+    EXTENSION = ".txt"
+
+    XY_DELIMITER = " "
+    X_FORMAT = "%f"
+    Y_FORMAT = X_FORMAT
+    XY_FORMAT = X_FORMAT + XY_DELIMITER + Y_FORMAT
+
+    CRLF = "\r\n"
+
+    LOG_DELIMITER = " "
+    LOG_FORMAT = "%s = %7.3f %s"
+    LOG_CONSOLE_FORMAT = "%10s = %7.3f %s\n"
+
+
+class ADC:
+    def __init__(self, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder="ADC_0"):
+        self.host = host
+        self.port = port
+        self.name = dev
+        self.folder = folder
+        self.avg = avg
+        self.active = False
+        self.shot = -8888
+        self.timeout = time.time()
+        self.devProxy = None
+        self.db = None
+
+    def getName(self):
+        return self.host + ":" + self.port + "/" + self.name
+
+    def init(self):
+        try:
+            self.db = tango.Database()
+            self.devProxy = tango.DeviceProxy(self.getName())
+            self.active = True
+        except:
+            self.active = False
+            self.timeout = time.time() + 10000
+
+    def readShot(self):
+        try:
+            da = self.devProxy.read_attribute("Shot_id")
+            newShot = da.value
+            return newShot
+        except:
+            return -1
+
+
+class Channel:
+    def __init__(self, adc, name):
+        self.dev = adc
+        try:
+            i = int(name)
+            self.name = 'chany' + str(i)
+        except:
+            self.name = name
+        self.prop = None
+        self.attr = None
+
+    def readProperties(self):
+        # read signal properties
+        ap = self.dev.db.get_device_attribute_property(self.dev.name, self.name)
+        self.prop = ap[self.name]
+
+    def readData(self):
+        self.attr = self.dev.devProxy.read_attribute(self.name)
+        return self.attr.value
+
+    def readXData(self):
+        if not self.name.startswith('chany'):
+            self.xvalue = np.arange(len(self.attr.value))
+        else:
+            self.xvalue = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
+        return self.xvalue
+
+    def getPropAsBoolean(self, propName):
+        propVal = None
+        try:
+            propString = self.getProp(propName).lower()
+            if propString == "true":
+                propVal = True
+            elif propString == "on":
+                propVal = True
+            elif propString == "1":
+                propVal = True
+            else:
+                propVal = False
+            return propVal
+        except:
+            return propVal
+
+    def getPropAsInt(self, propName):
+        try:
+            return int(self.getProp(propName))
+        except:
+            return None
+
+    def getPropAsFloat(self, propName):
+        try:
+            return float(self.getProp(propName))
+        except:
+            return None
+
+    def getProp(self, propName):
+        ps = None
+        try:
+            if self.prop is None:
+                self.readProperties()
+            ps = self.prop[propName][0]
+            return ps
+        except:
+            return ps
+
+    def get_marks(self):
+        if self.prop is None:
+            self.readProperties()
+        if self.attr is None:
+            self.readData()
+        ml = {}
+        for pk in self.prop:
+            if pk.endswith(Constants.START_SUFFIX):
+                pv = int(self.prop[pk][0])
+                pn = pk.replace(Constants.START_SUFFIX, "")
+                pln = pn + Constants.LENGTH_SUFFIX
+                if pln in self.prop:
+                    pl = int(self.prop[pln][0])
+                else:
+                    pl = 1
+                ml[pn] = self.attr.value[pv:pv+pl].mean()
+        return ml
+
+
 class LoggerDumper:
     def __init__(self):
         # configure logging
@@ -116,7 +279,7 @@ class LoggerDumper:
         self.zipFile = None
 
         if len(self.devList) <= 0 :
-            self.logger.log(logging.CRIRICAL, "No ADC found")
+            self.logger.log(logging.CRITICAL, "No ADC found")
             return
 
         # fill AdlinkADC in deviceList
@@ -151,7 +314,7 @@ class LoggerDumper:
                                 break
 
                         d.shot = shotNew
-                        print("\n%s New Shot %d\n", self.timeStamp(), shotNew)
+                        print("\n%s New Shot %d\n" % (self.timeStamp(), shotNew))
                         if not self.locked:
                             self.makeFolder()
                             self.lockDir(self.outFolder)
@@ -164,12 +327,12 @@ class LoggerDumper:
                             # open zip file
                             self.zipFile = self.openZipFile(self.outFolder)
 
-                        print("Saving from " + d.fullName())
+                        print("Saving from " + d.getName())
                         self.dumpDataAndLog(d, self.zipFile, self.logFile)
                     except :
                         d.active = False
                         d.timeout = time.time() + 10000
-                        self.logger.log(logging.INFO, "ADC %s inactive, timeout for 10 seconds", d.fullName())
+                        self.logger.log(logging.INFO, "ADC %s inactive, timeout for 10 seconds", d.getName())
 
                 if self.locked:
                     self.zipFile.close()
@@ -177,12 +340,12 @@ class LoggerDumper:
                     fmt = '; ' + "File" + '=' + "%s"
                     zfn = self.zipFile.filename
                     self.logFile.write(fmt % zfn)
-                    self.logFile.write(b'\r\n')
+                    self.logFile.write('\r\n')
                     self.logFile.close()
                     self.unlockDir()
                     print("\n%s Waiting for next shot ..." % self.timeStamp())
             except:
-                self.logger.log(logging.CRIRICAL, "Unexpected exception")
+                self.logger.log(logging.CRITICAL, "Unexpected exception")
                 self.printExceptionInfo()
                 return
             time.sleep(1)
@@ -197,7 +360,7 @@ class LoggerDumper:
                 self.logger.log(logging.DEBUG, "Folder %s created", self.outFolder)
                 return True
         except:
-            self.logger.log(logging.CRIRICAL, "Output folder %s not created", self.outFolder)
+            self.logger.log(logging.CRITICAL, "Output folder %s not created", self.outFolder)
             return False
 
     def getLogFolderName(self):
@@ -232,7 +395,7 @@ class LoggerDumper:
 
     def unlockDir(self):
         self.lockFile.close()
-        os.remove(self.lockFile)
+        os.remove(self.lockFile.name)
         self.locked = False
         self.logger.log(logging.DEBUG, "Directory unlocked")
 
@@ -243,9 +406,9 @@ class LoggerDumper:
         atts = adc.devProxy.get_attribute_list()
         #retry_count = 0
         for a in atts:
-            retry_count = 3
-            while retry_count > 0:
-                if a.startswith("chany"):
+            if a.startswith("chany"):
+                retry_count = 3
+                while retry_count > 0:
                     try :
                         chan = Channel(adc, a)
                         # read save_data and save_log flags
@@ -261,13 +424,14 @@ class LoggerDumper:
                                 self.saveSignalLog(logFile, chan)
                         retry_count = -1
                     except:
+                        self.printExceptionInfo()
                         self.logFile.flush()
                         #self.zipFile.close()
                         retry_count -= 1
-                if retry_count > 0:
-                    print("Retry reading channel %s" % a.name)
-                if retry_count == 0:
-                    print("Error reading channel %s" % a.name)
+                    if retry_count > 0:
+                        print("Retry reading channel %s" % a.name)
+                    if retry_count == 0:
+                        print("Error reading channel %s" % a.name)
 
     def convertToBuf(self, x, y, avgc):
         xs = 0.0
@@ -277,7 +441,7 @@ class LoggerDumper:
         s = ''
         outbuf = ''
 
-        if y == None or x == None :
+        if y is None or x is None :
             return outbuf
         if len(y) <= 0 or len(x) <= 0 :
             return outbuf
@@ -319,7 +483,7 @@ class LoggerDumper:
 
     def saveSignalProp(self, zipFile, chan):
         entryName = chan.dev.folder + "/" + Constants.PARAM + chan.name + Constants.EXTENSION
-        outbuf = "Name=%s\r\n" % chan.dev.getName() + "/" + chan.name
+        outbuf = "Name=%s/%s\r\n" % (chan.dev.getName(), chan.name)
         outbuf += "Shot=%d\r\n" % chan.dev.shot
         propList = ['%s=%s'%(k,chan.prop[k][0]) for k in chan.prop]
         for prop in propList:
@@ -350,27 +514,27 @@ class LoggerDumper:
         # Find all marks and log (mark - zero)*coeff
         for mark in marks:
             firstLine = True
-            if not Constants.ZERO_NAME.equals(mark):
+            if not Constants.ZERO_NAME == mark:
                 logMarkValue = (marks[mark] - zero) * coeff
                 logMarkName = mark
-                if logMarkName.equals(Constants.MARK_NAME):
+                if logMarkName == Constants.MARK_NAME:
                     logMarkName = label
 
                 # Print saved mark value
                 #//print(Constants.LOG_CONSOLE_FORMAT, logMarkName, logMarkValue, unit)
                 if firstLine:
                     print("%7s " % chan.name)
-                else :
+                else:
                     print("%7s " % "  ")
 
                 if abs(logMarkValue) >= 1000.0:
                     print("%10s = %7.0f %s\n" % (logMarkName, logMarkValue, unit))
                 elif abs(logMarkValue) >= 100.0:
-                    print("%10s = %7.1f %s\n", logMarkName, logMarkValue, unit)
+                    print("%10s = %7.1f %s\n" % (logMarkName, logMarkValue, unit))
                 elif abs(logMarkValue) >= 10.0:
-                    print("%10s = %7.2f %s\n", logMarkName, logMarkValue, unit)
+                    print("%10s = %7.2f %s\n" % (logMarkName, logMarkValue, unit))
                 else:
-                    print("%10s = %7.3f %s\n", logMarkName, logMarkValue, unit)
+                    print("%10s = %7.3f %s\n" % (logMarkName, logMarkValue, unit))
                 firstLine = False
 
                 fmt = '; ' + Constants.LOG_FORMAT
@@ -383,171 +547,7 @@ if __name__ == '__main__':
         lgd.readConfig()
         lgd.process()
     except:
-        lgd.logger.log(logging.CRIRICAL, "Exception in LoggerDumper")
+        lgd.logger.log(logging.CRITICAL, "Exception in LoggerDumper")
         lgd.printExceptionInfo()
 
 
-class ADC:
-    def __init__(self, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder="ADC_0"):
-        self.host = host
-        self.port = port
-        self.name = dev
-        self.folder = folder
-        self.avg = avg
-        self.active = False
-        self.shot = -8888
-        self.timeout = time.time()
-        self.devProxy = None
-        self.db = None
-
-
-    def getName(self):
-        return self.host + ":" + self.port + "/" + self.name
-
-
-    def init(self):
-        try:
-            self.db = tango.Database()
-            self.devProxy = tango.DeviceProxy(self.getName())
-            self.active = True
-        except:
-            self.active = False
-            self.timeout = time.time() + 10000
-
-
-    def readShot(self):
-        try :
-            da = self.devProxy.read_attribute("Shot_id")
-            newShot = da.value
-            return newShot
-        except :
-            return -1
-        
-
-class Constants:
-    DEFAULT_HOST = "192.168.161.74"
-    DEFAULT_PORT = "10000"
-    DEFAULT_DEV = "binp/nbi/adc0"
-    DEFAULT_AVG = 100
-
-    DEFAULT_MARK_X_VALUE = None
-    DEFAULT_MARK_Y_VALUE = 0.0
-
-    PROP_VAL_DELIMITER = " = "
-    PROP_VAL_DELIMITER_OLD = ": "
-
-    ZERO_NAME = "zero"
-    ZERO_MARK_NAME = "Zero"
-    MARK_NAME = "mark"
-
-    START_SUFFIX = "_start"
-    LENGTH_SUFFIX = "_length"
-    NAME_SUFFIX = "_name"
-
-    UNIT = "unit"
-    LABEL = "label"
-    DISPLAY_UNIT = "display_unit"
-    SAVE_DATA = "save_data"
-    SAVE_AVG = "save_avg"
-    SAVE_LOG = "save_log"
-    SHOT_ID = "Shot_id"
-
-    CHAN = "chan"
-    PARAM = "param"
-
-    EXTENSION = ".txt"
-
-    XY_DELIMITER = " "
-    X_FORMAT = "%f"
-    Y_FORMAT = X_FORMAT
-    XY_FORMAT = X_FORMAT + XY_DELIMITER + Y_FORMAT
-
-    CRLF = "\r\n"
-
-    LOG_DELIMITER = " "
-    LOG_FORMAT = "%s = %7.3f %s"
-    LOG_CONSOLE_FORMAT = "%10s = %7.3f %s\n"
-
-
-class Channel:
-    def __init__(self, adc, name):
-        self.dev = adc
-        try:
-            i = int(name)
-            self.name = 'chany' + str(i)
-        except:
-            self.name = name
-        self.prop = None
-        self.attr = None
-
-    def readProperties(self):
-        # read signal properties
-        ap = self.dev.db.get_device_attribute_property(self.dev.name, self.name)
-        self.prop = ap[self.name]
-
-    def readData(self):
-        self.attr = self.dev.read_attribute(self.name)
-        return self.attr.value
-
-    def readXData(self):
-        if not self.name.starswith('chany'):
-            self.xvalue = np.arange(len(self.attr.value))
-        else:
-            self.xvalue = self.dev.read_attribute(self.name.replace('y', 'x')).value
-        return self.xvalue
-
-    def getPropAsBoolean(self, propName):
-        propVal = None
-        try:
-            propString = self.getProp(propName).lower()
-            if propString == "true":
-                propVal = True
-            elif propString == "on":
-                propVal = True
-            elif propString == "1":
-                propVal = True
-            else:
-                propVal = False
-            return propVal
-        except:
-            return propVal
-
-    def getPropAsInt(self, propName):
-        try:
-            return int(self.getProp(propName))
-        except:
-            return None
-
-    def getPropAsFloat(self, propName):
-        try:
-            return float(self.getProp(propName))
-        except:
-            return None
-
-    def getProp(self, propName):
-        ps = None
-        try:
-            if self.prop is None:
-                self.readProperties()
-            ps = self.prop[propName][0]
-            return ps
-        except:
-            return ps
-
-    def get_marks(self):
-        if self.prop is None:
-            self.readProperties()
-        if self.attr is None:
-            self.readData()
-        ml = {}
-        for pk in self.prop:
-            if pk.endswith(Constants.START_SUFFIX):
-                pv = int(self.prop[pk][0])
-                pn = pk.replace(Constants.START_SUFFIX, "")
-                pln = pn + Constants.LENGTH_SUFFIX
-                if pln in self.prop:
-                    pl = int(self.prop[pln][0])
-                else:
-                    pl = 1
-                ml[pn] = self.attr.value[pv:pv+pl].mean()
-        return ml
