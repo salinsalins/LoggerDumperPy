@@ -310,7 +310,7 @@ class LoggerDumper:
                             if d.timeout > time.time():
                                 continue
                             d.init()
-                            self.logger.log(logging.DEBUG, "ADC %s activated", d.fullName())
+                            self.logger.log(logging.DEBUG, "ADC %s was activated", d.fullName())
                         shotNew = d.readShot()
                         if shotNew <= d.shot:
                             if self.locked:
@@ -324,12 +324,11 @@ class LoggerDumper:
                             self.makeFolder()
                             self.lockDir(self.outFolder)
                             self.logFile = self.openLogFile(self.outFolder)
-                            # write date and time
+                            # Write date and time
                             self.logFile.write(self.dateTimeStamp())
-                            # wrie shot number
-                            fmt = '; ' + "Shot" + '=' + "%5d"
-                            self.logFile.write(fmt % shotNew)
-                            # open zip file
+                            # Wrie shot number
+                            self.logFile.write('; Shot=%5d' % shotNew)
+                            # Open zip file
                             self.zipFile = self.openZipFile(self.outFolder)
 
                         print("Saving from " + d.getName())
@@ -341,9 +340,9 @@ class LoggerDumper:
 
                 if self.locked:
                     self.zipFile.close()
-                    # write zip file name
-                    fmt = '; ' + "File" + '=' + "%s"
-                    zfn = self.zipFile.filename
+                    # Write zip file name
+                    fmt = '; File=%s'
+                    zfn = self.zipFile.filename.replace('\n', '')
                     self.logFile.write(fmt % zfn)
                     self.logFile.write('\r\n')
                     self.logFile.close()
@@ -488,7 +487,7 @@ class LoggerDumper:
 
     def saveSignalProp(self, zipFile, chan):
         entryName = chan.dev.folder + "/" + Constants.PARAM + chan.name + Constants.EXTENSION
-        outbuf = "Name=%s/%s\r\n" % (chan.dev.getName(), chan.name)
+        outbuf = "Signal_Name=%s/%s\r\n" % (chan.dev.getName(), chan.name)
         outbuf += "Shot=%d\r\n" % chan.dev.shot
         propList = ['%s=%s'%(k,chan.prop[k][0]) for k in chan.prop]
         for prop in propList:
@@ -496,19 +495,18 @@ class LoggerDumper:
         zipFile.writestr(entryName, outbuf)
 
     def saveSignalLog(self, logFile, chan):
-        #// Get signal label = default mark name
-        label = chan.getProp(Constants.LABEL)
-        #//print("label = %s\n", label)
-
-        #// Get unit name
-        unit = chan.getProp(Constants.UNIT)
-        #//print("unit = %s\n", unit)
-
-        #// Get calibration coefficient for conversion to unit
+        # Signal label = default mark name
+        label = chan.getProp('label')
+        if label is None or '' == label:
+            label = chan.getProp('name')
+        if label is None or '' == label:
+            label = chan.name
+        # Units
+        unit = chan.getProp('unit')
+        # Calibration coefficient for conversion to units
         coeff = chan.getPropAsFloat(Constants.DISPLAY_UNIT)
         if coeff is None or coeff == 0.0:
             coeff = 1.0
-        #//print("coeff = %g\n", coeff)
 
         marks = chan.get_marks()
 
@@ -516,34 +514,38 @@ class LoggerDumper:
         zero = 0.0
         if Constants.ZERO_NAME in marks:
             zero = marks[Constants.ZERO_NAME]
-        # Find all marks and log (mark - zero)*coeff
+
+        # Find all marks and calculate mark_value = (mark - zero)*coeff
         for mark in marks:
-            firstLine = True
+            first_line = True
+            # if it is not zero mark
             if not Constants.ZERO_NAME == mark:
-                logMarkValue = (marks[mark] - zero) * coeff
-                logMarkName = mark
-                if logMarkName == Constants.MARK_NAME:
-                    logMarkName = label
+                mark_value = (marks[mark] - zero) * coeff
+                mark_name = mark
+                # Default mark renamed to label
+                if mark_name == Constants.MARK_NAME:
+                    mark_name = label
 
-                # Print saved mark value
-                #//print(Constants.LOG_CONSOLE_FORMAT, logMarkName, logMarkValue, unit)
-                if firstLine:
-                    print("%7s " % chan.name)
+                # Print mark name = value
+                if first_line:
+                    print("%10s " % chan.name, end='')
                 else:
-                    print("%7s " % "  ")
-
-                if abs(logMarkValue) >= 1000.0:
-                    print("%10s = %7.0f %s\n" % (logMarkName, logMarkValue, unit))
-                elif abs(logMarkValue) >= 100.0:
-                    print("%10s = %7.1f %s\n" % (logMarkName, logMarkValue, unit))
-                elif abs(logMarkValue) >= 10.0:
-                    print("%10s = %7.2f %s\n" % (logMarkName, logMarkValue, unit))
+                    print("%10s " % "  ", end='')
+                pmn = mark_name
+                if len(mark_name) > 14:
+                    pmn = mark_name[:5] + '...' + mark_name[-6:]
+                if abs(mark_value) >= 1000.0:
+                    print("%14s = %7.0f %s\r\n" % (pmn, mark_value, unit), end='')
+                elif abs(mark_value) >= 100.0:
+                    print("%14s = %7.1f %s\r\n" % (pmn, mark_value, unit), end='')
+                elif abs(mark_value) >= 10.0:
+                    print("%14s = %7.2f %s\r\n" % (pmn, mark_value, unit), end='')
                 else:
-                    print("%10s = %7.3f %s\n" % (logMarkName, logMarkValue, unit))
-                firstLine = False
+                    print("%14s = %7.3f %s\r\n" % (pmn, mark_value, unit), end='')
+                first_line = False
 
-                fmt = '; ' + Constants.LOG_FORMAT
-                self.logFile.write(fmt % (logMarkName, logMarkValue, unit))
+                fmt = "; %s = %7.3f %s"
+                self.logFile.write(fmt % (mark_name, mark_value, unit))
 
 
 if __name__ == '__main__':
