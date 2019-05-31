@@ -193,7 +193,7 @@ class LoggerDumper:
 
         self.progName = "Adlink DAQ-2204 PyTango Logger"
         self.progNameShort = "LoggerDumperPy"
-        self.progVersion = "0.1"
+        self.progVersion = "1.0"
         self.configFileName = self.progNameShort + ".json"
 
         self.outRootDir = ".\\data\\"
@@ -331,7 +331,7 @@ class LoggerDumper:
                             # Open zip file
                             self.zipFile = self.openZipFile(self.outFolder)
 
-                        print("Saving from " + d.getName())
+                        print("Saving from ADC " + d.getName())
                         self.dumpDataAndLog(d, self.zipFile, self.logFile)
                     except :
                         d.active = False
@@ -341,10 +341,9 @@ class LoggerDumper:
                 if self.locked:
                     self.zipFile.close()
                     # Write zip file name
-                    fmt = '; File=%s'
-                    zfn = self.zipFile.filename.replace('\n', '')
-                    self.logFile.write(fmt % zfn)
-                    self.logFile.write('\r\n')
+                    zfn = os.path.basename(self.zipFile.filename)
+                    self.logFile.write('; File=%s' % zfn)
+                    self.logFile.write('\n')
                     self.logFile.close()
                     self.unlockDir()
                     print("\n%s Waiting for next shot ..." % self.timeStamp())
