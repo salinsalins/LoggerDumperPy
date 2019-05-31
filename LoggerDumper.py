@@ -93,10 +93,9 @@ class ADC:
 class Channel:
     def __init__(self, adc, name):
         self.dev = adc
-        try:
-            i = int(name)
-            self.name = 'chany' + str(i)
-        except:
+        if type(name) is int:
+            self.name = 'chany' + str(name)
+        else:
             self.name = name
         self.prop = None
         self.attr = None
@@ -156,6 +155,8 @@ class Channel:
             return ps
 
     def get_marks(self):
+        #print(self.name)
+        #print(self.prop)
         if self.prop is None:
             self.readProperties()
         if self.attr is None:
@@ -163,14 +164,18 @@ class Channel:
         ml = {}
         for pk in self.prop:
             if pk.endswith(Constants.START_SUFFIX):
-                pv = int(self.prop[pk][0])
-                pn = pk.replace(Constants.START_SUFFIX, "")
-                pln = pn + Constants.LENGTH_SUFFIX
-                if pln in self.prop:
-                    pl = int(self.prop[pln][0])
-                else:
-                    pl = 1
-                ml[pn] = self.attr.value[pv:pv+pl].mean()
+                try:
+                    #print(pk, self.prop[pk])
+                    pv = int(self.prop[pk][0])
+                    pn = pk.replace(Constants.START_SUFFIX, "")
+                    pln = pn + Constants.LENGTH_SUFFIX
+                    if pln in self.prop:
+                        pl = int(self.prop[pln][0])
+                    else:
+                        pl = 1
+                    ml[pn] = self.attr.value[pv:pv+pl].mean()
+                except:
+                    ml[pn] = self.attr.value[0]
         return ml
 
 
@@ -390,7 +395,7 @@ class LoggerDumper:
     def openZipFile(self, folder):
         fn = datetime.datetime.today().strftime('%Y-%m-%d_%H%M%S.zip')
         zipFileName = os.path.join(folder, fn)
-        zipFile = zipfile.ZipFile(zipFileName, 'a')
+        zipFile = zipfile.ZipFile(zipFileName, 'a', compression=zipfile.ZIP_DEFLATED)
         return zipFile
 
     def unlockDir(self):
