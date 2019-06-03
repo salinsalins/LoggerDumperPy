@@ -205,6 +205,7 @@ class LoggerDumper:
     def readConfig(self):
         # no command line parameters
         if len(sys.argv) <= 1:
+            self.logger.log(logging.DEBUG, "No command line config")
             self.restoreSettings()
             return
         # first command line parameter - config file
@@ -224,12 +225,14 @@ class LoggerDumper:
             self.outRootDir = sys.argv[5]
         except:
             pass
+        self.logger.log(logging.DEBUG, "Configuration set from command line")
         self.devList.append(d)
         self.logger.log(logging.DEBUG, "ADC %s", d.getName())
 
     def restoreSettings(self, folder=''):
+        fullName = os.path.join(str(folder), self.configFileName)
+        self.logger.log(logging.DEBUG, "Reading config from file %", fullName)
         try :
-            fullName = os.path.join(str(folder), self.configFileName)
             with open(fullName, 'r') as configfile:
                 s = configfile.read()
             self.conf = json.loads(s)
