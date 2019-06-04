@@ -10,6 +10,16 @@ import zipfile
 import numpy as np
 import tango
 
+# configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+log_formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                                       datefmt='%H:%M:%S')
+console_handler = logging.StreamHandler()
+# self.console_handler.setLevel(logging.WARNING)
+console_handler.setFormatter(log_formatter)
+logger.addHandler(console_handler)
+
 
 class Constants:
     DEFAULT_HOST = "192.168.161.74"
@@ -70,16 +80,18 @@ class ADC:
         self.db = None
 
     def getName(self):
-        return self.host + ":" + self.port + "/" + self.name
+        return self.host + ":" + str(self.port) + "/" + self.name
 
     def init(self):
         try:
             self.db = tango.Database()
             self.devProxy = tango.DeviceProxy(self.getName())
             self.active = True
+            logger.log(logging.DEBUG, "ADC %s activated" % self.getName())
         except:
             self.active = False
             self.timeout = time.time() + 10000
+            logger.log(logging.DEBUG, "ADC %s activation errror" % self.getName())
 
     def readShot(self):
         try:
@@ -181,19 +193,9 @@ class Channel:
 
 class LoggerDumper:
     def __init__(self):
-        # configure logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
-        self.log_formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                                               datefmt='%H:%M:%S')
-        self.console_handler = logging.StreamHandler()
-        # self.console_handler.setLevel(logging.WARNING)
-        self.console_handler.setFormatter(self.log_formatter)
-        self.logger.addHandler(self.console_handler)
-
         self.progName = "Adlink DAQ-2204 PyTango Logger"
         self.progNameShort = "LoggerDumperPy"
-        self.progVersion = "1.0"
+        self.progVersion = "1.1"
         self.configFileName = self.progNameShort + ".json"
 
         self.outRootDir = ".\\data\\"
@@ -205,7 +207,7 @@ class LoggerDumper:
     def readConfig(self):
         # no command line parameters
         if len(sys.argv) <= 1:
-            self.logger.log(logging.DEBUG, "No command line config")
+            logger.log(logging.DEBUG, "No command line config")
             self.restoreSettings()
             return
         # first command line parameter - config file
@@ -225,13 +227,13 @@ class LoggerDumper:
             self.outRootDir = sys.argv[5]
         except:
             pass
-        self.logger.log(logging.DEBUG, "Configuration set from command line")
+        logger.log(logging.DEBUG, "Configuration set from command line")
         self.devList.append(d)
-        self.logger.log(logging.DEBUG, "ADC %s", d.getName())
+        logger.log(logging.DEBUG, "ADC %s" % d.getName())
 
     def restoreSettings(self, folder=''):
         fullName = os.path.join(str(folder), self.configFileName)
-        self.logger.log(logging.DEBUG, "Reading config from file %", fullName)
+        logger.log(logging.DEBUG, "Reading config from file %s" % fullName)
         try :
             with open(fullName, 'r') as configfile:
                 s = configfile.read()
@@ -241,8 +243,8 @@ class LoggerDumper:
             s = logging.DEBUG
             if 'Loglevel' in self.conf:
                 s = self.conf['Loglevel']
-            self.logger.setLevel(s)
-            self.logger.log(logging.DEBUG, "Log level %s set", s)
+            logger.setLevel(s)
+            logger.log(logging.DEBUG, "Log level %d set" % s)
 
             # read output directory
             self.outRootDir = self.conf["outDir"]
@@ -253,41 +255,41 @@ class LoggerDumper:
             if 'ADCCount' in self.conf:
                 n = self.conf["ADCCount"]
             if n <= 0:
-                self.logger.log(logging.WARNING, "No ADC declared")
+                logger.log(logging.WARNING, "No ADC declared")
                 return
             # read ADCs
             for j in range(n):
                 d = ADC()
-                section = "ADC_" + j
+                section = "ADC_" + str(j)
                 d.host = self.conf[section]["host"]
                 d.port = self.conf[section]["port"]
                 d.dev = self.conf[section]["device"]
                 d.folder = self.conf[section]["folder"]
                 d.avg = self.conf[section]["avg"]
                 self.devList.append(d)
-                self.logger.log(logging.DEBUG, "ADC %s", d.getName())
+                logger.log(logging.DEBUG, "ADC %s" % d.getName())
 
             # print OK message and exit
-            self.logger.info('Configuration restored from %s'%fullName)
+            logger.info('Configuration restored from %s' % fullName)
             return True
         except :
             # print error info
             self.printExceptionInfo()
-            self.logger.info('Configuration restore error from %s'%fullName)
+            logger.info('Configuration restore error from %s'%fullName)
             return False
 
     def printExceptionInfo(self):
         #excInfo = sys.exc_info()
         #(tp, value) = sys.exc_info()[:2]
-        #self.logger.log(level, 'Exception %s %s'%(str(tp), str(value)))
-        self.logger.error("Exception ", exc_info=True)
+        #logger.log(level, 'Exception %s %s'%(str(tp), str(value)))
+        logger.error("Exception ", exc_info=True)
 
     def process(self) :
         self.logFile = None
         self.zipFile = None
 
         if len(self.devList) <= 0 :
-            self.logger.log(logging.CRITICAL, "No ADC found")
+            logger.log(logging.CRITICAL, "No ADC found")
             return
 
         # fill AdlinkADC in deviceList
@@ -298,9 +300,9 @@ class LoggerDumper:
                 d.init()
                 count += 1
             except :
-                self.logger.log(logging.INFO, "ADC %s initialization error", d.getName())
+                logger.log(logging.INFO, "ADC %s initialization error" % d.getName())
         if count == 0 :
-            self.logger.log(logging.WARNING, "No active ADC found")
+            logger.log(logging.WARNING, "No active ADC found")
             return
 
         shotNew = 0
@@ -313,7 +315,7 @@ class LoggerDumper:
                             if d.timeout > time.time():
                                 continue
                             d.init()
-                            self.logger.log(logging.DEBUG, "ADC %s was activated", d.fullName())
+                            logger.log(logging.DEBUG, "ADC %s was activated", d.fullName())
                         shotNew = d.readShot()
                         if shotNew <= d.shot:
                             if self.locked:
@@ -339,7 +341,7 @@ class LoggerDumper:
                     except :
                         d.active = False
                         d.timeout = time.time() + 10000
-                        self.logger.log(logging.INFO, "ADC %s inactive, timeout for 10 seconds", d.getName())
+                        logger.log(logging.INFO, "ADC %s inactive, timeout for 10 seconds", d.getName())
 
                 if self.locked:
                     self.zipFile.close()
@@ -351,7 +353,7 @@ class LoggerDumper:
                     self.unlockDir()
                     print("\n%s Waiting for next shot ..." % self.timeStamp())
             except:
-                self.logger.log(logging.CRITICAL, "Unexpected exception")
+                logger.log(logging.CRITICAL, "Unexpected exception")
                 self.printExceptionInfo()
                 return
             time.sleep(1)
@@ -363,10 +365,10 @@ class LoggerDumper:
         try:
             if not os.path.exists(self.outFolder):
                 os.makedirs(self.outFolder)
-                self.logger.log(logging.DEBUG, "Folder %s created", self.outFolder)
+                logger.log(logging.DEBUG, "Folder %s created", self.outFolder)
                 return True
         except:
-            self.logger.log(logging.CRITICAL, "Output folder %s not created", self.outFolder)
+            logger.log(logging.CRITICAL, "Output folder %s not created", self.outFolder)
             return False
 
     def getLogFolderName(self):
@@ -379,7 +381,7 @@ class LoggerDumper:
     def lockDir(self, folder):
         self.lockFile = open(os.path.join(folder, "lock.lock"), 'w+')
         self.locked = True
-        self.logger.log(logging.DEBUG, "Directory %s locked", folder)
+        logger.log(logging.DEBUG, "Directory %s locked", folder)
 
     def openLogFile(self, folder=''):
         self.logFileName = os.path.join(folder, self.getLogFileName())
@@ -403,7 +405,7 @@ class LoggerDumper:
         self.lockFile.close()
         os.remove(self.lockFile.name)
         self.locked = False
-        self.logger.log(logging.DEBUG, "Directory unlocked")
+        logger.log(logging.DEBUG, "Directory unlocked")
 
     def timeStamp(self):
         return datetime.datetime.today().strftime('%H:%M:%S')

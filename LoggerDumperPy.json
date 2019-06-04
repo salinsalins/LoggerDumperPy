@@ -1,0 +1,12 @@
+{
+    "Loglevel": 10,
+    "outDir": ".\\data\\",
+    "ADCCount": 1,
+    "ADC_0": {
+        "host": "192.168.1.41",
+        "port": 10000,
+        "device": "binp/nbi/adc0",
+        "avg": 100,
+        "folder": "ADC_0"
+    }
+}
