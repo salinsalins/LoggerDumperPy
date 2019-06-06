@@ -79,21 +79,21 @@ class ADC:
         self.devProxy = None
         self.db = None
 
-    def getName(self):
-        return self.host + ":" + str(self.port) + "/" + self.name
+    def get_name(self):
+        return "%s:%d/%s" % (self.host, self.port, self.name)
 
     def init(self):
         try:
             self.db = tango.Database()
-            self.devProxy = tango.DeviceProxy(self.getName())
+            self.devProxy = tango.DeviceProxy(self.get_name())
             self.active = True
-            logger.log(logging.DEBUG, "ADC %s activated" % self.getName())
+            logger.log(logging.DEBUG, "ADC %s activated" % self.get_name())
         except:
             self.active = False
             self.timeout = time.time() + 10000
-            logger.log(logging.DEBUG, "ADC %s activation errror" % self.getName())
+            logger.log(logging.DEBUG, "ADC %s activation errror" % self.get_name())
 
-    def readShot(self):
+    def read_shot(self):
         try:
             da = self.devProxy.read_attribute("Shot_id")
             newShot = da.value
@@ -112,12 +112,12 @@ class Channel:
         self.prop = None
         self.attr = None
 
-    def readProperties(self):
+    def read_properties(self):
         # read signal properties
         ap = self.dev.db.get_device_attribute_property(self.dev.name, self.name)
         self.prop = ap[self.name]
 
-    def readData(self):
+    def read_data(self):
         self.attr = self.dev.devProxy.read_attribute(self.name)
         return self.attr.value
 
@@ -131,7 +131,7 @@ class Channel:
     def getPropAsBoolean(self, propName):
         propVal = None
         try:
-            propString = self.getProp(propName).lower()
+            propString = self.get_prop(propName).lower()
             if propString == "true":
                 propVal = True
             elif propString == "on":
@@ -146,21 +146,21 @@ class Channel:
 
     def getPropAsInt(self, propName):
         try:
-            return int(self.getProp(propName))
+            return int(self.get_prop(propName))
         except:
             return None
 
     def getPropAsFloat(self, propName):
         try:
-            return float(self.getProp(propName))
+            return float(self.get_prop(propName))
         except:
             return None
 
-    def getProp(self, propName):
+    def get_prop(self, propName):
         ps = None
         try:
             if self.prop is None:
-                self.readProperties()
+                self.read_properties()
             ps = self.prop[propName][0]
             return ps
         except:
@@ -170,16 +170,16 @@ class Channel:
         #print(self.name)
         #print(self.prop)
         if self.prop is None:
-            self.readProperties()
+            self.read_properties()
         if self.attr is None:
-            self.readData()
+            self.read_data()
         ml = {}
         for pk in self.prop:
             if pk.endswith(Constants.START_SUFFIX):
+                pn = pk.replace(Constants.START_SUFFIX, "")
                 try:
                     #print(pk, self.prop[pk])
                     pv = int(self.prop[pk][0])
-                    pn = pk.replace(Constants.START_SUFFIX, "")
                     pln = pn + Constants.LENGTH_SUFFIX
                     if pln in self.prop:
                         pl = int(self.prop[pln][0])
@@ -204,16 +204,16 @@ class LoggerDumper:
         self.lockFile = "lock.lock"
         self.locked = False
 
-    def readConfig(self):
+    def read_config(self):
         # no command line parameters
         if len(sys.argv) <= 1:
             logger.log(logging.DEBUG, "No command line config")
-            self.restoreSettings()
+            self.restore_settings()
             return
         # first command line parameter - config file
         if sys.argv[1].endswith(".json"):
             self.configFileName = sys.argv[1]
-            self.restoreSettings()
+            self.restore_settings()
             return
         # host port device averaging in command line parameters
         self.devList = []
@@ -229,9 +229,9 @@ class LoggerDumper:
             pass
         logger.log(logging.DEBUG, "Configuration set from command line")
         self.devList.append(d)
-        logger.log(logging.DEBUG, "ADC %s" % d.getName())
+        logger.log(logging.DEBUG, "ADC %s" % d.get_name())
 
-    def restoreSettings(self, folder=''):
+    def restore_settings(self, folder=''):
         fullName = os.path.join(str(folder), self.configFileName)
         logger.log(logging.DEBUG, "Reading config from file %s" % fullName)
         try :
@@ -267,7 +267,7 @@ class LoggerDumper:
                 d.folder = self.conf[section]["folder"]
                 d.avg = self.conf[section]["avg"]
                 self.devList.append(d)
-                logger.log(logging.DEBUG, "ADC %s" % d.getName())
+                logger.log(logging.DEBUG, "ADC %s" % d.get_name())
 
             # print OK message and exit
             logger.info('Configuration restored from %s' % fullName)
@@ -300,7 +300,7 @@ class LoggerDumper:
                 d.init()
                 count += 1
             except :
-                logger.log(logging.INFO, "ADC %s initialization error" % d.getName())
+                logger.log(logging.INFO, "ADC %s initialization error" % d.get_name())
         if count == 0 :
             logger.log(logging.WARNING, "No active ADC found")
             return
@@ -316,7 +316,7 @@ class LoggerDumper:
                                 continue
                             d.init()
                             logger.log(logging.DEBUG, "ADC %s was activated", d.fullName())
-                        shotNew = d.readShot()
+                        shotNew = d.read_shot()
                         if shotNew <= d.shot:
                             if self.locked:
                                 continue
@@ -326,7 +326,7 @@ class LoggerDumper:
                         d.shot = shotNew
                         print("\n%s New Shot %d\n" % (self.timeStamp(), shotNew))
                         if not self.locked:
-                            self.makeFolder()
+                            self.make_folder()
                             self.lockDir(self.outFolder)
                             self.logFile = self.openLogFile(self.outFolder)
                             # Write date and time
@@ -336,12 +336,12 @@ class LoggerDumper:
                             # Open zip file
                             self.zipFile = self.openZipFile(self.outFolder)
 
-                        print("Saving from ADC " + d.getName())
+                        print("Saving from ADC " + d.get_name())
                         self.dumpDataAndLog(d, self.zipFile, self.logFile)
                     except :
                         d.active = False
                         d.timeout = time.time() + 10000
-                        logger.log(logging.INFO, "ADC %s inactive, timeout for 10 seconds", d.getName())
+                        logger.log(logging.INFO, "ADC %s inactive, timeout for 10 seconds", d.get_name())
 
                 if self.locked:
                     self.zipFile.close()
@@ -358,7 +358,7 @@ class LoggerDumper:
                 return
             time.sleep(1)
 
-    def makeFolder(self):
+    def make_folder(self):
         if not self.outRootDir.endswith("\\"):
             self.outRootDir = self.outRootDir + "\\"
         self.outFolder = os.path.join(self.outRootDir, self.getLogFolderName())
@@ -426,7 +426,7 @@ class LoggerDumper:
                         if save_data_flag or saveLogFlag:
                             self.saveSignalProp(zipFile, chan)
                             if save_data_flag:
-                                chan.readData()
+                                chan.read_data()
                                 self.saveSignalData(zipFile, chan)
                             if saveLogFlag:
                                 self.saveSignalLog(logFile, chan)
@@ -491,7 +491,7 @@ class LoggerDumper:
 
     def saveSignalProp(self, zipFile, chan):
         entryName = chan.dev.folder + "/" + Constants.PARAM + chan.name + Constants.EXTENSION
-        outbuf = "Signal_Name=%s/%s\r\n" % (chan.dev.getName(), chan.name)
+        outbuf = "Signal_Name=%s/%s\r\n" % (chan.dev.get_name(), chan.name)
         outbuf += "Shot=%d\r\n" % chan.dev.shot
         propList = ['%s=%s'%(k,chan.prop[k][0]) for k in chan.prop]
         for prop in propList:
@@ -500,13 +500,13 @@ class LoggerDumper:
 
     def saveSignalLog(self, logFile, chan):
         # Signal label = default mark name
-        label = chan.getProp('label')
+        label = chan.get_prop('label')
         if label is None or '' == label:
-            label = chan.getProp('name')
+            label = chan.get_prop('name')
         if label is None or '' == label:
             label = chan.name
         # Units
-        unit = chan.getProp('unit')
+        unit = chan.get_prop('unit')
         # Calibration coefficient for conversion to units
         coeff = chan.getPropAsFloat(Constants.DISPLAY_UNIT)
         if coeff is None or coeff == 0.0:
@@ -555,7 +555,7 @@ class LoggerDumper:
 if __name__ == '__main__':
     lgd = LoggerDumper()
     try:
-        lgd.readConfig()
+        lgd.read_config()
         lgd.process()
     except:
         lgd.logger.log(logging.CRITICAL, "Exception in LoggerDumper")
