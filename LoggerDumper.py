@@ -121,7 +121,7 @@ class Channel:
         self.attr = self.dev.devProxy.read_attribute(self.name)
         return self.attr.value
 
-    def readXData(self):
+    def read_x_data(self):
         if not self.name.startswith('chany'):
             self.xvalue = np.arange(len(self.attr.value))
         else:
@@ -274,11 +274,11 @@ class LoggerDumper:
             return True
         except :
             # print error info
-            self.printExceptionInfo()
+            self.print_exception_info()
             logger.info('Configuration restore error from %s'%fullName)
             return False
 
-    def printExceptionInfo(self):
+    def print_exception_info(self):
         #excInfo = sys.exc_info()
         #(tp, value) = sys.exc_info()[:2]
         #logger.log(level, 'Exception %s %s'%(str(tp), str(value)))
@@ -327,8 +327,8 @@ class LoggerDumper:
                         print("\n%s New Shot %d\n" % (self.timeStamp(), shotNew))
                         if not self.locked:
                             self.make_folder()
-                            self.lockDir(self.outFolder)
-                            self.logFile = self.openLogFile(self.outFolder)
+                            self.lock_dir(self.outFolder)
+                            self.logFile = self.open_log_file(self.outFolder)
                             # Write date and time
                             self.logFile.write(self.dateTimeStamp())
                             # Wrie shot number
@@ -350,18 +350,18 @@ class LoggerDumper:
                     self.logFile.write('; File=%s' % zfn)
                     self.logFile.write('\n')
                     self.logFile.close()
-                    self.unlockDir()
+                    self.unlock_dir()
                     print("\n%s Waiting for next shot ..." % self.timeStamp())
             except:
                 logger.log(logging.CRITICAL, "Unexpected exception")
-                self.printExceptionInfo()
+                self.print_exception_info()
                 return
             time.sleep(1)
 
     def make_folder(self):
         if not self.outRootDir.endswith("\\"):
             self.outRootDir = self.outRootDir + "\\"
-        self.outFolder = os.path.join(self.outRootDir, self.getLogFolderName())
+        self.outFolder = os.path.join(self.outRootDir, self.get_log_folder_name())
         try:
             if not os.path.exists(self.outFolder):
                 os.makedirs(self.outFolder)
@@ -371,24 +371,24 @@ class LoggerDumper:
             logger.log(logging.CRITICAL, "Output folder %s not created", self.outFolder)
             return False
 
-    def getLogFolderName(self):
+    def get_log_folder_name(self):
         ydf = datetime.datetime.today().strftime('%Y')
         mdf = datetime.datetime.today().strftime('%Y-%m')
         ddf = datetime.datetime.today().strftime('%Y-%m-%d')
         folder = os.path.join(ydf, mdf, ddf)
         return folder
 
-    def lockDir(self, folder):
+    def lock_dir(self, folder):
         self.lockFile = open(os.path.join(folder, "lock.lock"), 'w+')
         self.locked = True
         logger.log(logging.DEBUG, "Directory %s locked", folder)
 
-    def openLogFile(self, folder=''):
-        self.logFileName = os.path.join(folder, self.getLogFileName())
+    def open_log_file(self, folder=''):
+        self.logFileName = os.path.join(folder, self.get_log_file_name())
         logf = open(self.logFileName, 'a')
         return logf
 
-    def getLogFileName(self):
+    def get_log_file_name(self):
         logfn = datetime.datetime.today().strftime('%Y-%m-%d.log')
         return logfn
 
@@ -401,7 +401,7 @@ class LoggerDumper:
         zipFile = zipfile.ZipFile(zipFileName, 'a', compression=zipfile.ZIP_DEFLATED)
         return zipFile
 
-    def unlockDir(self):
+    def unlock_dir(self):
         self.lockFile.close()
         os.remove(self.lockFile.name)
         self.locked = False
@@ -432,7 +432,7 @@ class LoggerDumper:
                                 self.saveSignalLog(logFile, chan)
                         retry_count = -1
                     except:
-                        self.printExceptionInfo()
+                        self.print_exception_info()
                         self.logFile.flush()
                         #self.zipFile.close()
                         retry_count -= 1
@@ -486,7 +486,7 @@ class LoggerDumper:
         if saveAvg < 1:
             saveAvg = 1
         #// print("saveAvg: %d\r\n", saveAvg)
-        buf = self.convertToBuf(chan.readXData(), chan.attr.value, saveAvg)
+        buf = self.convertToBuf(chan.read_x_data(), chan.attr.value, saveAvg)
         zipFile.writestr(entryName, buf)
 
     def saveSignalProp(self, zipFile, chan):
@@ -559,6 +559,6 @@ if __name__ == '__main__':
         lgd.process()
     except:
         lgd.logger.log(logging.CRITICAL, "Exception in LoggerDumper")
-        lgd.printExceptionInfo()
+        lgd.print_exception_info()
 
 
