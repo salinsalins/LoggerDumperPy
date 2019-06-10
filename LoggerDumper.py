@@ -16,7 +16,7 @@ logger.setLevel(logging.DEBUG)
 log_formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                                        datefmt='%H:%M:%S')
 console_handler = logging.StreamHandler()
-# self.console_handler.setLevel(logging.WARNING)
+#console_handler.setLevel(logging.WARNING)
 console_handler.setFormatter(log_formatter)
 logger.addHandler(console_handler)
 
@@ -128,7 +128,7 @@ class Channel:
             self.xvalue = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
         return self.xvalue
 
-    def getPropAsBoolean(self, propName):
+    def get_prop_as_boolean(self, propName):
         propVal = None
         try:
             propString = self.get_prop(propName).lower()
@@ -148,13 +148,13 @@ class Channel:
         except:
             return propVal
 
-    def getPropAsInt(self, propName):
+    def get_prop_as_int(self, propName):
         try:
             return int(self.get_prop(propName))
         except:
             return None
 
-    def getPropAsFloat(self, propName):
+    def get_prop_as_float(self, propName):
         try:
             return float(self.get_prop(propName))
         except:
@@ -329,20 +329,20 @@ class LoggerDumper:
                                 break
 
                         d.shot = nshot
-                        print("\n%s New Shot %d\n" % (self.timeStamp(), nshot))
+                        print("\n%s New Shot %d\n" % (self.time_stamp(), nshot))
                         if not self.locked:
                             self.make_folder()
                             self.lock_dir(self.outFolder)
                             self.logFile = self.open_log_file(self.outFolder)
                             # Write date and time
-                            self.logFile.write(self.dateTimeStamp())
+                            self.logFile.write(self.date_time_stamp())
                             # Write shot number
                             self.logFile.write('; Shot=%5d' % nshot)
                             # Open zip file
-                            self.zipFile = self.openZipFile(self.outFolder)
+                            self.zipFile = self.open_zip_file(self.outFolder)
 
                         print("Saving from ADC " + d.get_name())
-                        self.dumpDataAndLog(d, self.zipFile, self.logFile)
+                        self.save_data_and_log(d, self.zipFile, self.logFile)
                     except :
                         d.active = False
                         d.timeout = time.time() + 10000
@@ -356,7 +356,7 @@ class LoggerDumper:
                     self.logFile.write('\n')
                     self.logFile.close()
                     self.unlock_dir()
-                    print("\n%s Waiting for next shot ..." % self.timeStamp())
+                    print("\n%s Waiting for next shot ..." % self.time_stamp())
             except:
                 logger.log(logging.CRITICAL, "Unexpected exception")
                 self.print_exception_info()
@@ -396,10 +396,10 @@ class LoggerDumper:
         logfn = datetime.datetime.today().strftime('%Y-%m-%d.log')
         return logfn
 
-    def dateTimeStamp(self):
+    def date_time_stamp(self):
         return datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
 
-    def openZipFile(self, folder):
+    def open_zip_file(self, folder):
         fn = datetime.datetime.today().strftime('%Y-%m-%d_%H%M%S.zip')
         zipFileName = os.path.join(folder, fn)
         zipFile = zipfile.ZipFile(zipFileName, 'a', compression=zipfile.ZIP_DEFLATED)
@@ -411,10 +411,10 @@ class LoggerDumper:
         self.locked = False
         logger.log(logging.DEBUG, "Directory unlocked")
 
-    def timeStamp(self):
+    def time_stamp(self):
         return datetime.datetime.today().strftime('%H:%M:%S')
 
-    def dumpDataAndLog(self, adc, zipFile, logFile):
+    def save_data_and_log(self, adc, zipFile, logFile):
         atts = adc.devProxy.get_attribute_list()
         #retry_count = 0
         for a in atts:
@@ -424,16 +424,16 @@ class LoggerDumper:
                     try :
                         chan = Channel(adc, a)
                         # read save_data and save_log flags
-                        save_data_flag = chan.getPropAsBoolean(Constants.SAVE_DATA)
-                        saveLogFlag = chan.getPropAsBoolean(Constants.SAVE_LOG)
+                        save_data_flag = chan.get_prop_as_boolean(Constants.SAVE_DATA)
+                        saveLogFlag = chan.get_prop_as_boolean(Constants.SAVE_LOG)
                         # save signal properties
                         if save_data_flag or saveLogFlag:
-                            self.saveSignalProp(zipFile, chan)
+                            self.save_signal_prop(zipFile, chan)
                             if save_data_flag:
                                 chan.read_data()
-                                self.saveSignalData(zipFile, chan)
+                                self.save_signal_data(zipFile, chan)
                             if saveLogFlag:
-                                self.saveSignalLog(logFile, chan)
+                                self.save_signal_log(logFile, chan)
                         retry_count = -1
                     except:
                         self.print_exception_info()
@@ -445,7 +445,7 @@ class LoggerDumper:
                     if retry_count == 0:
                         print("Error reading channel %s" % a.name)
 
-    def convertToBuf(self, x, y, avgc):
+    def convert_to_buf(self, x, y, avgc):
         xs = 0.0
         ys = 0.0
         ns = 0.0
@@ -484,16 +484,16 @@ class LoggerDumper:
             ns = 0.0
         return outbuf
 
-    def saveSignalData(self, zipFile, chan):
+    def save_signal_data(self, zipFile, chan):
         entryName = chan.dev.folder + "/" + chan.name + Constants.EXTENSION
-        saveAvg = chan.getPropAsInt(Constants.SAVE_AVG)
+        saveAvg = chan.get_prop_as_int(Constants.SAVE_AVG)
         if saveAvg < 1:
             saveAvg = 1
         #// print("saveAvg: %d\r\n", saveAvg)
-        buf = self.convertToBuf(chan.read_x_data(), chan.attr.value, saveAvg)
+        buf = self.convert_to_buf(chan.read_x_data(), chan.attr.value, saveAvg)
         zipFile.writestr(entryName, buf)
 
-    def saveSignalProp(self, zipFile, chan):
+    def save_signal_prop(self, zipFile, chan):
         entryName = chan.dev.folder + "/" + Constants.PARAM + chan.name + Constants.EXTENSION
         outbuf = "Signal_Name=%s/%s\r\n" % (chan.dev.get_name(), chan.name)
         outbuf += "Shot=%d\r\n" % chan.dev.shot
@@ -502,7 +502,7 @@ class LoggerDumper:
             outbuf += "%s\r\n" % prop
         zipFile.writestr(entryName, outbuf)
 
-    def saveSignalLog(self, logFile, chan):
+    def save_signal_log(self, logFile, chan):
         # Signal label = default mark name
         label = chan.get_prop('label')
         if label is None or '' == label:
@@ -512,7 +512,7 @@ class LoggerDumper:
         # Units
         unit = chan.get_prop('unit')
         # Calibration coefficient for conversion to units
-        coeff = chan.getPropAsFloat(Constants.DISPLAY_UNIT)
+        coeff = chan.get_prop_as_float(Constants.DISPLAY_UNIT)
         if coeff is None or coeff == 0.0:
             coeff = 1.0
 
@@ -564,5 +564,3 @@ if __name__ == '__main__':
     except:
         lgd.logger.log(logging.CRITICAL, "Exception in LoggerDumper")
         lgd.print_exception_info()
-
-
