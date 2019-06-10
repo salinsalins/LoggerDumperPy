@@ -138,6 +138,10 @@ class Channel:
                 propVal = True
             elif propString == "1":
                 propVal = True
+            elif propString == "y":
+                propVal = True
+            elif propString == "yes":
+                propVal = True
             else:
                 propVal = False
             return propVal
@@ -157,14 +161,13 @@ class Channel:
             return None
 
     def get_prop(self, propName):
-        ps = None
         try:
             if self.prop is None:
                 self.read_properties()
             ps = self.prop[propName][0]
             return ps
         except:
-            return ps
+            return None
 
     def get_marks(self):
         #print(self.name)
