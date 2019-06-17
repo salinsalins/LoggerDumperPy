@@ -91,7 +91,7 @@ class ADC:
         except:
             self.active = False
             self.timeout = time.time() + 10000
-            logger.log(logging.DEBUG, "ADC %s activation errror" % self.get_name())
+            logger.log(logging.ERROR, "ADC %s activation error" % self.get_name())
 
     def read_shot(self):
         try:
@@ -303,9 +303,10 @@ class LoggerDumper:
         for d in self.devList :
             try :
                 d.init()
-                count += 1
+                if d.active:
+                    count += 1
             except :
-                logger.log(logging.WARNING, "ADC %s initialization error" % d.get_name())
+                logger.log(logging.ERROR, "ADC %s initialization error" % d.get_name())
         if count == 0 :
             logger.log(logging.CRITICAL, "No active ADC found")
             return
