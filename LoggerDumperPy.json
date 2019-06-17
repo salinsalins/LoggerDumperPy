@@ -1,5 +1,5 @@
 {
-    "Loglevel": 10,
+    "Loglevel": 40,
     "outDir": ".\\data\\",
     "ADCCount": 1,
     "ADC_0": {

@@ -12,7 +12,7 @@ import tango
 
 # configure logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.WARNING)
 log_formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                                        datefmt='%H:%M:%S')
 console_handler = logging.StreamHandler()
@@ -282,8 +282,8 @@ class LoggerDumper:
             return True
         except :
             # print error info
-            self.print_exception_info()
             logger.info('Configuration restore error from %s' % fullName)
+            self.print_exception_info()
             return False
 
     def print_exception_info(self):
@@ -305,9 +305,9 @@ class LoggerDumper:
                 d.init()
                 count += 1
             except :
-                logger.log(logging.INFO, "ADC %s initialization error" % d.get_name())
+                logger.log(logging.WARNING, "ADC %s initialization error" % d.get_name())
         if count == 0 :
-            logger.log(logging.WARNING, "No active ADC found")
+            logger.log(logging.CRITICAL, "No active ADC found")
             return
 
         nshot = 0
@@ -329,7 +329,7 @@ class LoggerDumper:
                                 break
 
                         d.shot = nshot
-                        print("\n%s New Shot %d\n" % (self.time_stamp(), nshot))
+                        print("\n%s New Shot %d" % (self.time_stamp(), nshot))
                         if not self.locked:
                             self.make_folder()
                             self.lock_dir(self.outFolder)
@@ -356,7 +356,7 @@ class LoggerDumper:
                     self.logFile.write('\n')
                     self.logFile.close()
                     self.unlock_dir()
-                    print("\n%s Waiting for next shot ..." % self.time_stamp())
+                    print("%s Waiting for next shot ..." % self.time_stamp())
             except:
                 logger.log(logging.CRITICAL, "Unexpected exception")
                 self.print_exception_info()
