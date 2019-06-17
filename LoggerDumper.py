@@ -368,7 +368,7 @@ class LoggerDumper:
         try:
             if not os.path.exists(self.outFolder):
                 os.makedirs(self.outFolder)
-                logger.log(logging.DEBUG, "Folder %s created", self.outFolder)
+                logger.log(logging.DEBUG, "Folder %s has been created", self.outFolder)
                 return True
         except:
             self.outFolder = None
@@ -401,9 +401,9 @@ class LoggerDumper:
 
     def open_zip_file(self, folder):
         fn = datetime.datetime.today().strftime('%Y-%m-%d_%H%M%S.zip')
-        zipFileName = os.path.join(folder, fn)
-        zipFile = zipfile.ZipFile(zipFileName, 'a', compression=zipfile.ZIP_DEFLATED)
-        return zipFile
+        zip_file_name = os.path.join(folder, fn)
+        zip_file = zipfile.ZipFile(zip_file_name, 'a', compression=zipfile.ZIP_DEFLATED)
+        return zip_file
 
     def unlock_dir(self):
         self.lockFile.close()
@@ -414,7 +414,7 @@ class LoggerDumper:
     def time_stamp(self):
         return datetime.datetime.today().strftime('%H:%M:%S')
 
-    def save_data_and_log(self, adc, zipFile, logFile):
+    def save_data_and_log(self, adc, zip_file, log_file):
         atts = adc.devProxy.get_attribute_list()
         #retry_count = 0
         for a in atts:
@@ -424,16 +424,16 @@ class LoggerDumper:
                     try :
                         chan = Channel(adc, a)
                         # read save_data and save_log flags
-                        save_data_flag = chan.get_prop_as_boolean(Constants.SAVE_DATA)
-                        saveLogFlag = chan.get_prop_as_boolean(Constants.SAVE_LOG)
+                        sdf = chan.get_prop_as_boolean(Constants.SAVE_DATA)
+                        slf = chan.get_prop_as_boolean(Constants.SAVE_LOG)
                         # save signal properties
-                        if save_data_flag or saveLogFlag:
-                            self.save_signal_prop(zipFile, chan)
-                            if save_data_flag:
+                        if sdf or slf:
+                            self.save_prop(zip_file, chan)
+                            if sdf:
                                 chan.read_data()
-                                self.save_signal_data(zipFile, chan)
-                            if saveLogFlag:
-                                self.save_signal_log(logFile, chan)
+                                self.save_data(zip_file, chan)
+                            if slf:
+                                self.save_log(log_file, chan)
                         retry_count = -1
                     except:
                         self.print_exception_info()
@@ -484,25 +484,25 @@ class LoggerDumper:
             ns = 0.0
         return outbuf
 
-    def save_signal_data(self, zipFile, chan):
-        entryName = chan.dev.folder + "/" + chan.name + Constants.EXTENSION
-        saveAvg = chan.get_prop_as_int(Constants.SAVE_AVG)
-        if saveAvg < 1:
-            saveAvg = 1
+    def save_data(self, zip_file, chan):
+        entry = chan.dev.folder + "/" + chan.name + Constants.EXTENSION
+        avg = chan.get_prop_as_int(Constants.SAVE_AVG)
+        if avg < 1:
+            avg = 1
         #// print("saveAvg: %d\r\n", saveAvg)
-        buf = self.convert_to_buf(chan.read_x_data(), chan.attr.value, saveAvg)
-        zipFile.writestr(entryName, buf)
+        buf = self.convert_to_buf(chan.read_x_data(), chan.attr.value, avg)
+        zip_file.writestr(entry, buf)
 
-    def save_signal_prop(self, zipFile, chan):
-        entryName = chan.dev.folder + "/" + Constants.PARAM + chan.name + Constants.EXTENSION
-        outbuf = "Signal_Name=%s/%s\r\n" % (chan.dev.get_name(), chan.name)
-        outbuf += "Shot=%d\r\n" % chan.dev.shot
-        propList = ['%s=%s'%(k,chan.prop[k][0]) for k in chan.prop]
-        for prop in propList:
-            outbuf += "%s\r\n" % prop
-        zipFile.writestr(entryName, outbuf)
+    def save_prop(self, zip_file, chan):
+        entry = chan.dev.folder + "/" + Constants.PARAM + chan.name + Constants.EXTENSION
+        buf = "Signal_Name=%s/%s\r\n" % (chan.dev.get_name(), chan.name)
+        buf += "Shot=%d\r\n" % chan.dev.shot
+        prop_list = ['%s=%s'%(k, chan.prop[k][0]) for k in chan.prop]
+        for prop in prop_list:
+            buf += "%s\r\n" % prop
+        zip_file.writestr(entry, buf)
 
-    def save_signal_log(self, logFile, chan):
+    def save_log(self, log_file, chan):
         # Signal label = default mark name
         label = chan.get_prop('label')
         if label is None or '' == label:
@@ -523,7 +523,7 @@ class LoggerDumper:
         if Constants.ZERO_NAME in marks:
             zero = marks[Constants.ZERO_NAME]
 
-        # Find all marks and calculate mark_value = (mark - zero)*coeff
+        # Convert all marks to mark_value = (mark - zero)*coeff
         for mark in marks:
             first_line = True
             # if it is not zero mark
