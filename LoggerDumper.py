@@ -20,6 +20,8 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 logger.addHandler(console_handler)
 
+config = {}
+
 
 class Constants:
     DEFAULT_HOST = "192.168.161.74"
@@ -54,14 +56,14 @@ class Constants:
 
     EXTENSION = ".txt"
 
-    XY_DELIMITER = " "
+    XY_DELIMITER = "; "
     X_FORMAT = "%f"
     Y_FORMAT = X_FORMAT
     XY_FORMAT = X_FORMAT + XY_DELIMITER + Y_FORMAT
 
     CRLF = "\r\n"
 
-    LOG_DELIMITER = " "
+    LOG_DELIMITER = "; "
     LOG_FORMAT = "%s = %7.3f %s"
     LOG_CONSOLE_FORMAT = "%10s = %7.3f %s\n"
 
@@ -198,7 +200,7 @@ class LoggerDumper:
     def __init__(self):
         self.progName = "Adlink DAQ-2204 PyTango Logger"
         self.progNameShort = "LoggerDumperPy"
-        self.progVersion = "1.1"
+        self.progVersion = "1.2"
         self.configFileName = self.progNameShort + ".json"
 
         self.outRootDir = ".\\data\\"
@@ -242,6 +244,7 @@ class LoggerDumper:
             with open(fullName, 'r') as configfile:
                 s = configfile.read()
             self.conf = json.loads(s)
+            config = self.conf
 
             # restore log level
             v = logging.DEBUG
@@ -286,8 +289,8 @@ class LoggerDumper:
             self.print_exception_info()
             return False
 
-    def print_exception_info(self):
-        logger.error("Exception ", exc_info=True)
+    def print_exception_info(self, level=logging.ERROR):
+        logger.log(level, "Exception ", exc_info=True)
 
     def process(self) :
         self.logFile = None
@@ -310,8 +313,6 @@ class LoggerDumper:
         if count == 0 :
             logger.log(logging.CRITICAL, "No active ADC found")
             return
-
-        nshot = 0
 
         while True :
             try :
