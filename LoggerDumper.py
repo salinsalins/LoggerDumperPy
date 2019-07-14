@@ -8,19 +8,19 @@ import time
 import zipfile
 
 import numpy as np
-import tango
+#import tango
 
-# configure logging
+# Configure logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.DEBUG)
 log_formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                                        datefmt='%H:%M:%S')
 console_handler = logging.StreamHandler()
-#console_handler.setLevel(logging.WARNING)
 console_handler.setFormatter(log_formatter)
 logger.addHandler(console_handler)
 
 config = {}
+item_list = []
 
 
 class Constants:
@@ -195,143 +195,103 @@ class Channel:
                     ml[pn] = self.attr.value[0]
         return ml
 
+progName = "PyTango Shot Logger"
+progNameShort = "LoggerDumperPy"
+progVersion = "2.0"
+configFileName = progNameShort + ".json"
+
+def print_exception_info(level=logging.DEBUG):
+    logger.log(level, "Exception ", exc_info=True)
+
 
 class LoggerDumper:
     def __init__(self):
-        self.progName = "Adlink DAQ-2204 PyTango Logger"
-        self.progNameShort = "LoggerDumperPy"
-        self.progVersion = "1.2"
-        self.configFileName = self.progNameShort + ".json"
-
         self.outRootDir = ".\\data\\"
         self.outFolder = ".\\data\\"
         self.devList = []
         self.lockFile = "lock.lock"
         self.locked = False
 
-    def restore_settings(self):
-        # no command line parameters
-        if len(sys.argv) <= 1:
-            logger.log(logging.DEBUG, "No command line config")
-            self.read_config()
-            return
-        # first command line parameter - config file
-        if sys.argv[1].endswith(".json"):
-            self.configFileName = sys.argv[1]
-            self.read_config()
-            return
-        # host port device averaging in command line parameters
-        logger.log(logging.DEBUG, "Reading config from command line")
-        self.devList = []
-        d = ADC()
-        try:
-            d.folder = "ADC_0"
-            d.host = sys.argv[1]
-            d.port = sys.argv[2]
-            d.dev = sys.argv[3]
-            d.avg = int(sys.argv[4])
-            self.outRootDir = sys.argv[5]
-        except:
-            pass
-        self.devList.append(d)
-        logger.log(logging.DEBUG, "ADC %s was added to config" % d.get_name())
+        self.device_list = []
 
-    def read_config(self, folder=''):
-        fullName = os.path.join(str(folder), self.configFileName)
-        logger.log(logging.DEBUG, "Reading config from %s" % fullName)
+    def read_config(self, file_name=configFileName):
+        global config
+        global item_list
         try :
-            # read config from file
-            with open(fullName, 'r') as configfile:
+            # Read config from file
+            with open(file_name, 'r') as configfile:
                 s = configfile.read()
-            self.conf = json.loads(s)
-            config = self.conf
-
-            # restore log level
-            v = logging.DEBUG
-            if 'Loglevel' in self.conf:
-                v = self.conf['Loglevel']
-            logger.setLevel(v)
-            logger.log(logging.DEBUG, "Log level set to %d" % v)
-
-            # read output directory
-            if 'outDir' in self.conf:
-                self.outRootDir = self.conf["outDir"]
-
-            # number of ADCs
-            self.devList = []
-            n = 0
-            if 'ADCCount' in self.conf:
-                n = self.conf["ADCCount"]
-            if n <= 0:
-                logger.log(logging.WARNING, "No ADC declared")
+            config = json.loads(s)
+            # Restore log level
+            try:
+                logger.setLevel(config['Loglevel'])
+            except:
+                logger.setLevel(logging.DEBUG)
+            logger.log(logging.DEBUG, "Log level set to %d" % logger.level)
+            # Read output directory
+            if 'outDir' in config:
+                self.outRootDir = config["outDir"]
+            # Restore devices
+            if 'devices' not in config:
+                logger.log(logging.WARNING, "No devices declared")
+                item_list = []
                 return
-            # read ADCs
-            for j in range(n):
-                d = ADC()
-                section = "ADC_" + str(j)
+            devices = config["devices"]
+            if len(devices) <= 0:
+                logger.log(logging.WARNING, "No devices declared")
+                return
+            for d in devices:
                 try:
-                    d.host = self.conf[section]["host"]
-                    d.port = self.conf[section]["port"]
-                    d.dev = self.conf[section]["device"]
-                    d.folder = self.conf[section]["folder"]
-                    d.avg = self.conf[section]["avg"]
+                    if 'import' in d:
+                        exec(d["import"])
+                    item = eval(d["init"])
+                    item_list.append(item)
+                    logger.log(logging.DEBUG, "Item %s was added to list" % item.get_name())
                 except:
                     pass
-                self.devList.append(d)
-                logger.log(logging.DEBUG, "ADC %s was added to config" % d.get_name())
-
-            # print OK message and exit
-            logger.info('Configuration restored from %s' % fullName)
+            # Print OK message and exit
+            logger.info('Configuration restored from %s' % file_name)
             return True
         except :
-            # print error info
-            logger.info('Configuration restore error from %s' % fullName)
-            self.print_exception_info()
+            # Print error info
+            logger.info('Configuration restore error from %s' % file_name)
+            print_exception_info()
             return False
-
-    def print_exception_info(self, level=logging.ERROR):
-        logger.log(level, "Exception ", exc_info=True)
 
     def process(self) :
         self.logFile = None
         self.zipFile = None
 
-        if len(self.devList) <= 0 :
-            logger.log(logging.CRITICAL, "No ADC found")
+        if len(item_list) <= 0 :
+            logger.log(logging.CRITICAL, "No items declared")
             return
 
-        # activate AdlinkADC in deviceList
-        # active ADC count
+        # Activate items in item_list
+        # Active item count
         count = 0
-        for d in self.devList :
+        n = 0
+        for item in item_list :
             try :
-                d.init()
-                if d.active:
+                if item.activate():
                     count += 1
-            except :
-                logger.log(logging.ERROR, "ADC %s initialization error" % d.get_name())
+                n += 1
+            except:
+                item_list.remove(item)
+                logger.log(logging.ERROR, "Item %d removed from list due to activation error" % n)
+                print_exception_info()
         if count == 0 :
-            logger.log(logging.CRITICAL, "No active ADC found")
+            logger.log(logging.CRITICAL, "No active items")
             return
-
+        # Main loop
         while True :
             try :
-                for d in self.devList:
+                for item in item_list:
                     try :
-                        if not d.active:
-                            if d.timeout > time.time():
-                                continue
-                            d.init()
-                            logger.log(logging.DEBUG, "ADC %s was activated", d.fullName())
-                        nshot = d.read_shot()
-                        if nshot <= d.shot:
-                            if self.locked:
-                                continue
-                            else:
-                                break
-
-                        d.shot = nshot
-                        print("\n%s New Shot %d" % (self.time_stamp(), nshot))
+                        # Reactivate all items
+                        item.activate()
+                        if item.check_new_shot():
+                            print("\n%s New Shot %d" % item.shot)
+                            break
                         if not self.locked:
                             self.make_folder()
                             self.lock_dir(self.outFolder)
@@ -343,12 +303,12 @@ class LoggerDumper:
                             # Open zip file
                             self.zipFile = self.open_zip_file(self.outFolder)
 
-                        print("Saving from ADC " + d.get_name())
-                        self.save_data_and_log(d, self.zipFile, self.logFile)
+                        print("Saving from ADC " + item.get_name())
+                        self.save_data_and_log(item, self.zipFile, self.logFile)
                     except :
-                        d.active = False
-                        d.timeout = time.time() + 10000
-                        logger.log(logging.INFO, "ADC %s is inactive, 10 seconds timeout", d.get_name())
+                        item.active = False
+                        item.timeout = time.time() + 10000
+                        logger.log(logging.INFO, "ADC %s is inactive, 10 seconds timeout", item.get_name())
 
                 if self.locked:
                     self.zipFile.close()
@@ -561,8 +521,10 @@ class LoggerDumper:
 if __name__ == '__main__':
     lgd = LoggerDumper()
     try:
-        lgd.restore_settings()
+        lgd.read_config()
+        if len(item_list) <= 0:
+            return
         lgd.process()
     except:
-        lgd.logger.log(logging.CRITICAL, "Exception in LoggerDumper")
-        lgd.print_exception_info()
+        logger.log(logging.CRITICAL, "Exception in LoggerDumper")
+        print_exception_info()
