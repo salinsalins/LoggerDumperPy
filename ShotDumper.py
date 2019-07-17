@@ -71,12 +71,14 @@ class TestDevice:
         if self.points > 0:
             buf = ""
             for k in range(self.points):
-                s = '%f; %f' % (self.time+float(k)/100.0, np.sin(k))
+                s = '%f; %f' % (float(k), np.sin(time.time()+float(self.n)+float(k)/100.0)+0.1*np.sin(time.time()+float(k)/5.0))
                 buf += s.replace(",", ".")
                 if k < self.points-1:
                     buf += '\r\n'
-            entry = "TestDev/TestDev_%d.xtx"%self.n
+            entry = "TestDev/chanTestDev_%d.xtx"%self.n
             zip_file.writestr(entry, buf)
+            entry = "TestDev/paramchanTestDev_%d.xtx"%self.n
+            zip_file.writestr(entry, "name=TestDev_%d"%self.n)
 
 
 class AdlinkADC:
@@ -486,7 +488,7 @@ class ShotDumper:
                     # Open zip file
                     self.zipFile = self.open_zip_file(self.outFolder)
                     for item in item_list:
-                        print("Saving from %s", item.get_name())
+                        print("Saving from %s"%item.get_name())
                         try:
                             item.save(self.logFile, self.zipFile)
                         except:

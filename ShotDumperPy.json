@@ -4,8 +4,11 @@
     "outDir": ".\\data\\",
     "devices": [
         {
-            "init": "TestDevice(delta_t=3.0, points=300)"
+            "init": "TestDevice(delta_t=3.0, points=650)"
+        },
+        {
+            "init": "TestDevice(delta_t=3.0, points=650)"
         }
     ],
-    "shot": 28
+    "shot": 112
 }
