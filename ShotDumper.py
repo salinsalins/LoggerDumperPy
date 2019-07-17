@@ -33,12 +33,13 @@ def print_exception_info(level=logging.DEBUG):
 
 class TestDevice:
     n = 0
-    def __init__(self, delta_t=-1.0):
+    def __init__(self, delta_t=-1.0, points=0):
         self.n = TestDevice.n
         self.time = time.time()
         self.shot = 0
         self.active = False
         self.delta_t = delta_t
+        self.points = points
         TestDevice.n += 1
 
     def get_name(self):
@@ -67,6 +68,15 @@ class TestDevice:
     def save(self, log_file, zip_file):
         logger.log(logging.DEBUG, "TestDevice %d - Save" % self.n)
         log_file.write('; TestDev_%d=%f'%(self.n, self.time))
+        if self.points > 0:
+            buf = ""
+            for k in range(self.points):
+                s = '%f; %f' % (self.time+float(k)/100.0, np.sin(k))
+                buf += s.replace(",", ".")
+                if k < self.points-1:
+                    buf += '\r\n'
+            entry = "TestDev/TestDev_%d.xtx"%self.n
+            zip_file.writestr(entry, buf)
 
 
 class AdlinkADC:
@@ -480,7 +490,8 @@ class ShotDumper:
                         try:
                             item.save(self.logFile, self.zipFile)
                         except:
-                            pass
+                            logger.log(logging.WARNING, "Exception saving data from %s"%str(item))
+                            print_exception_info()
                         ##self.logFile.flush()
                         ##self.zipFile.flush()
                     self.zipFile.close()
