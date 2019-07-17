@@ -1,23 +1,11 @@
 {
+    "sleep": 1.0,
     "Loglevel": 10,
     "outDir": ".\\data\\",
-    "ADCCount": 1,
-    "ADC_0": {
-        "host": "192.168.1.41",
-        "port": 10000,
-        "device": "binp/nbi/adc0",
-        "avg": 100,
-        "folder": "ADC_0"
-    },
     "devices": [
         {
-            "host": "192.168.1.41",
-            "port": 10000,
-            "device": "binp/nbi/adc0",
-            "avg": 100,
-            "folder": "ADC_0",
-            "import": "import my_test",
-            "init": "my_test.my_test()"
+            "init": "TestDevice(delta_t=3.0)"
         }
-    ]
+    ],
+    "shot": 10
 }

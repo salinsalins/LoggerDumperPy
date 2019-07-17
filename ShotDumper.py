@@ -8,7 +8,7 @@ import time
 import zipfile
 
 import numpy as np
-import tango
+#import tango
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -48,23 +48,25 @@ class TestDevice:
         return self.get_name()
 
     def activate(self):
+        if self.active:
+            return True
         self.active = True
         self.time = time.time()
-        logger.log(logging.DEBUG, "TestDev %n activated" % self.n)
+        logger.log(logging.DEBUG, "TestDevice %d activated" % self.n)
         return True
 
     def new_shot(self):
         if self.delta_t >= 0.0 and (time.time() - self.time) > self.delta_t:
             self.shot += 1
             self.time = time.time()
-            logger.log(logging.DEBUG, "TestDev %n - New shot %d" % (self.n, self.shot))
+            logger.log(logging.DEBUG, "TestDevice %d - New shot %d" % (self.n, self.shot))
             return True
-        logger.log(logging.DEBUG, "TestDev %n - No new shot" % self.n)
+        logger.log(logging.DEBUG, "TestDevice %d - No new shot" % self.n)
         return False
 
     def save(self, log_file, zip_file):
-        logger.log(logging.DEBUG, "TestDev %n - Save" % self.n)
-        log_file.write('TestDev_%d=%f', (self.n, self.time))
+        logger.log(logging.DEBUG, "TestDevice %d - Save" % self.n)
+        log_file.write('; TestDev_%d=%f'%(self.n, self.time))
 
 
 class AdlinkADC:
@@ -371,6 +373,8 @@ class ShotDumper:
             except:
                 logger.setLevel(logging.DEBUG)
             logger.log(logging.DEBUG, "Log level set to %d" % logger.level)
+            if 'sleep' not in config:
+                config["sleep"] = 1.0
             # Read output directory
             if 'outDir' in config:
                 self.outRootDir = config["outDir"]
@@ -381,11 +385,11 @@ class ShotDumper:
                 logger.log(logging.WARNING, "No elements declared")
                 item_list = []
                 return
-            item_list = config["devices"]
-            if len(item_list) <= 0:
+            items = config["devices"]
+            if len(items) <= 0:
                 logger.log(logging.WARNING, "No elements declared")
                 return
-            for d in item_list:
+            for d in items:
                 try:
                     if 'import' in d:
                         exec(d["import"])
@@ -443,7 +447,7 @@ class ShotDumper:
                     try :
                         # Reactivate all items
                         item.activate()
-                        if item.check_new_shot():
+                        if item.new_shot():
                             new_shot = True
                             break
                     except:
@@ -462,21 +466,24 @@ class ShotDumper:
                         logger.log(logging.WARNING, "Unexpected lock")
                         self.zipFile.close()
                         self.logFile.close()
+                        self.logFile = self.open_log_file(self.outFolder)
                         self.unlock_dir()
 
                     # Write date and time
                     self.logFile.write(self.date_time_stamp())
                     # Write shot number
-                    self.logFile.write('; Shot=%6d' % self.shot)
+                    self.logFile.write('; Shot=%d' % self.shot)
                     # Open zip file
                     self.zipFile = self.open_zip_file(self.outFolder)
                     for item in item_list:
                         print("Saving from %s", item.get_name())
-                        item.save(self.logFile, self.zipFile)
+                        try:
+                            item.save(self.logFile, self.zipFile)
+                        except:
+                            pass
                         ##self.logFile.flush()
                         ##self.zipFile.flush()
                     self.zipFile.close()
-                    # Write zip file name
                     zfn = os.path.basename(self.zipFile.filename)
                     self.logFile.write('; File=%s' % zfn)
                     self.logFile.write('\n')
@@ -488,7 +495,7 @@ class ShotDumper:
                 print_exception_info()
                 return
             self.write_config()
-            time.sleep(1)
+            time.sleep(config['sleep'])
 
     def make_folder(self):
         self.outFolder = os.path.join(self.outRootDir, self.get_log_folder_name())
