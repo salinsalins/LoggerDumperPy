@@ -31,52 +31,133 @@ def print_exception_info(level=logging.DEBUG):
     logger.log(level, "Exception ", exc_info=True)
 
 
-class Constants:
-    DEFAULT_HOST = "192.168.161.74"
-    DEFAULT_PORT = "10000"
-    DEFAULT_DEV = "binp/nbi/adc0"
-    DEFAULT_AVG = 100
+class TestDevice:
+    n = 0
+    def __init__(self, delta_t=-1.0):
+        self.n = TestDevice.n
+        self.time = time.time()
+        self.shot = 0
+        self.active = False
+        self.delta_t = delta_t
+        TestDevice.n += 1
 
-    DEFAULT_MARK_X_VALUE = None
-    DEFAULT_MARK_Y_VALUE = 0.0
+    def get_name(self):
+        return "TestDevice_%d" % self.n
 
-    PROP_VAL_DELIMITER = " = "
-    PROP_VAL_DELIMITER_OLD = ": "
+    def __str__(self):
+        return self.get_name()
 
-    ZERO_NAME = "zero"
-    ZERO_MARK_NAME = "Zero"
-    MARK_NAME = "mark"
+    def activate(self):
+        self.active = True
+        self.time = time.time()
+        logger.log(logging.DEBUG, "TestDev %n activated" % self.n)
+        return True
 
-    START_SUFFIX = "_start"
-    LENGTH_SUFFIX = "_length"
-    NAME_SUFFIX = "_name"
+    def new_shot(self):
+        if self.delta_t >= 0.0 and (time.time() - self.time) > self.delta_t:
+            self.shot += 1
+            self.time = time.time()
+            logger.log(logging.DEBUG, "TestDev %n - New shot %d" % (self.n, self.shot))
+            return True
+        logger.log(logging.DEBUG, "TestDev %n - No new shot" % self.n)
+        return False
 
-    UNIT = "unit"
-    LABEL = "label"
-    DISPLAY_UNIT = "display_unit"
-    SAVE_DATA = "save_data"
-    SAVE_AVG = "save_avg"
-    SAVE_LOG = "save_log"
-    SHOT_ID = "Shot_id"
-
-    CHAN = "chan"
-    PARAM = "param"
-
-    EXTENSION = ".txt"
-
-    XY_DELIMITER = "; "
-    X_FORMAT = "%f"
-    Y_FORMAT = X_FORMAT
-    XY_FORMAT = X_FORMAT + XY_DELIMITER + Y_FORMAT
-
-    CRLF = "\r\n"
-
-    LOG_DELIMITER = "; "
-    LOG_FORMAT = "%s = %7.3f %s"
-    LOG_CONSOLE_FORMAT = "%10s = %7.3f %s\n"
+    def save(self, log_file, zip_file):
+        logger.log(logging.DEBUG, "TestDev %n - Save" % self.n)
+        log_file.write('TestDev_%d=%f', (self.n, self.time))
 
 
 class AdlinkADC:
+    class Channel:
+        def __init__(self, adc, name):
+            self.dev = adc
+            if type(name) is int:
+                self.name = 'chany' + str(name)
+            else:
+                self.name = name
+            self.prop = None
+            self.attr = None
+            self.xvalue = None
+
+        def read_properties(self):
+            # Read signal properties
+            ap = self.dev.db.get_device_attribute_property(self.dev.name, self.name)
+            self.prop = ap[self.name]
+
+        def read_data(self):
+            self.attr = self.dev.devProxy.read_attribute(self.name)
+            return self.attr.value
+
+        def read_x_data(self):
+            if not self.name.startswith('chany'):
+                self.read_data()
+                self.xvalue = np.arange(len(self.attr.value))
+            else:
+                self.xvalue = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
+            return self.xvalue
+
+        def get_prop_as_boolean(self, propName):
+            propVal = None
+            try:
+                propString = self.get_prop(propName).lower()
+                if propString == "true":
+                    propVal = True
+                elif propString == "on":
+                    propVal = True
+                elif propString == "1":
+                    propVal = True
+                elif propString == "y":
+                    propVal = True
+                elif propString == "yes":
+                    propVal = True
+                else:
+                    propVal = False
+                return propVal
+            except:
+                return propVal
+
+        def get_prop_as_int(self, propName):
+            try:
+                return int(self.get_prop(propName))
+            except:
+                return None
+
+        def get_prop_as_float(self, propName):
+            try:
+                return float(self.get_prop(propName))
+            except:
+                return None
+
+        def get_prop(self, propName):
+            try:
+                if self.prop is None:
+                    self.read_properties()
+                ps = self.prop[propName][0]
+                return ps
+            except:
+                return None
+
+        def get_marks(self):
+            if self.prop is None:
+                self.read_properties()
+            if self.attr is None:
+                self.read_data()
+            ml = {}
+            for pk in self.prop:
+                if pk.endswith("_start"):
+                    pn = pk.replace("_start", "")
+                    try:
+                        pv = int(self.prop[pk][0])
+                        pln = pn + "_length"
+                        if pln in self.prop:
+                            pl = int(self.prop[pln][0])
+                        else:
+                            pl = 1
+                        ml[pn] = self.attr.value[pv:pv + pl].mean()
+                    except:
+                        ml[pn] = 0.0
+            return ml
+
     def __init__(self, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder="ADC_0"):
         self.host = host
         self.port = port
@@ -88,6 +169,7 @@ class AdlinkADC:
         self.timeout = time.time()
         self.devProxy = None
         self.db = None
+        self.x_data = None
 
     def get_name(self):
         return "%s:%d/%s" % (self.host, self.port, self.name)
@@ -119,6 +201,7 @@ class AdlinkADC:
         ns = self.read_shot()
         if self.shot < ns:
             self.shot = ns
+            self.x_data = None
             return True
         return False
 
@@ -162,16 +245,17 @@ class AdlinkADC:
         return outbuf
 
     def save_data(self, zip_file, chan):
-        entry = chan.dev.folder + "/" + chan.name + Constants.EXTENSION
-        avg = chan.get_prop_as_int(Constants.SAVE_AVG)
+        entry = chan.dev.folder + "/" + chan.name + ".txt"
+        avg = chan.get_prop_as_int("save_avg")
         if avg < 1:
             avg = 1
-        #// print("saveAvg: %d\r\n", saveAvg)
-        buf = self.convert_to_buf(chan.read_x_data(), chan.attr.value, avg)
+        if self.x_data is None:
+            self.x_data = chan.read_x_data()
+        buf = self.convert_to_buf(self.x_data, chan.attr.value, avg)
         zip_file.writestr(entry, buf)
 
     def save_prop(self, zip_file, chan):
-        entry = chan.dev.folder + "/" + Constants.PARAM + chan.name + Constants.EXTENSION
+        entry = chan.dev.folder + "/" + "param" + chan.name + ".txt"
         buf = "Signal_Name=%s/%s\r\n" % (chan.dev.get_name(), chan.name)
         buf += "Shot=%d\r\n" % chan.dev.shot
         prop_list = ['%s=%s'%(k, chan.prop[k][0]) for k in chan.prop]
@@ -189,7 +273,7 @@ class AdlinkADC:
         # Units
         unit = chan.get_prop('unit')
         # Calibration coefficient for conversion to units
-        coeff = chan.get_prop_as_float(Constants.DISPLAY_UNIT)
+        coeff = chan.get_prop_as_float("display_unit")
         if coeff is None or coeff == 0.0:
             coeff = 1.0
 
@@ -197,23 +281,22 @@ class AdlinkADC:
 
         # Find zero value
         zero = 0.0
-        if Constants.ZERO_NAME in marks:
-            zero = marks[Constants.ZERO_NAME]
-
+        if "zero" in marks:
+            zero = marks["zero"]
         # Convert all marks to mark_value = (mark - zero)*coeff
         for mark in marks:
             first_line = True
-            # if it is not zero mark
-            if not Constants.ZERO_NAME == mark:
+            # If it is not zero mark
+            if not "zero" == mark:
                 mark_value = (marks[mark] - zero) * coeff
                 mark_name = mark
                 # Default mark renamed to label
-                if mark_name == Constants.MARK_NAME:
+                if mark_name == "mark":
                     mark_name = label
-
                 # Print mark name = value
                 if first_line:
                     print("%10s " % chan.name, end='')
+                    first_line = False
                 else:
                     print("%10s " % "  ", end='')
                 pmn = mark_name
@@ -227,24 +310,24 @@ class AdlinkADC:
                     print("%14s = %7.2f %s\r\n" % (pmn, mark_value, unit), end='')
                 else:
                     print("%14s = %7.3f %s\r\n" % (pmn, mark_value, unit), end='')
-                first_line = False
 
                 fmt = "; %s = %7.3f %s"
-                self.logFile.write(fmt % (mark_name, mark_value, unit))
+                log_file.write(fmt % (mark_name, mark_value, unit))
 
-    def save_data(self, log_file, zip_file):
+    def save(self, log_file, zip_file):
         atts = self.devProxy.get_attribute_list()
+        self.x_data = None
         # Retry_count = 0
         for a in atts:
             if a.startswith("chany"):
                 retry_count = 3
                 while retry_count > 0:
                     try :
-                        chan = Channel(self, a)
-                        # read save_data and save_log flags
-                        sdf = chan.get_prop_as_boolean(Constants.SAVE_DATA)
-                        slf = chan.get_prop_as_boolean(Constants.SAVE_LOG)
-                        # save signal properties
+                        chan = AdlinkADC.Channel(self, a)
+                        # Read save_data and save_log flags
+                        sdf = chan.get_prop_as_boolean("save_data")
+                        slf = chan.get_prop_as_boolean("save_log")
+                        # Save signal properties
                         if sdf or slf:
                             self.save_prop(zip_file, chan)
                             if sdf:
@@ -252,108 +335,15 @@ class AdlinkADC:
                                 self.save_data(zip_file, chan)
                             if slf:
                                 self.save_log(log_file, chan)
-                        retry_count = -1
+                        break
                     except:
+                        logger.log(logging.WARNING, "Adlink %s data save exception" % self.get_name())
                         print_exception_info()
-                        self.logFile.flush()
-                        #self.zipFile.close()
                         retry_count -= 1
                     if retry_count > 0:
-                        print("Retry reading channel %s" % a.name)
+                        logger.log(logging.DEBUG, "Retry reading channel %s" % self.get_name())
                     if retry_count == 0:
-                        print("Error reading channel %s" % a.name)
-
-
-class Channel:
-    def __init__(self, adc, name):
-        self.dev = adc
-        if type(name) is int:
-            self.name = 'chany' + str(name)
-        else:
-            self.name = name
-        self.prop = None
-        self.attr = None
-
-    def read_properties(self):
-        # read signal properties
-        ap = self.dev.db.get_device_attribute_property(self.dev.name, self.name)
-        self.prop = ap[self.name]
-
-    def read_data(self):
-        self.attr = self.dev.devProxy.read_attribute(self.name)
-        return self.attr.value
-
-    def read_x_data(self):
-        if not self.name.startswith('chany'):
-            self.xvalue = np.arange(len(self.attr.value))
-        else:
-            self.xvalue = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
-        return self.xvalue
-
-    def get_prop_as_boolean(self, propName):
-        propVal = None
-        try:
-            propString = self.get_prop(propName).lower()
-            if propString == "true":
-                propVal = True
-            elif propString == "on":
-                propVal = True
-            elif propString == "1":
-                propVal = True
-            elif propString == "y":
-                propVal = True
-            elif propString == "yes":
-                propVal = True
-            else:
-                propVal = False
-            return propVal
-        except:
-            return propVal
-
-    def get_prop_as_int(self, propName):
-        try:
-            return int(self.get_prop(propName))
-        except:
-            return None
-
-    def get_prop_as_float(self, propName):
-        try:
-            return float(self.get_prop(propName))
-        except:
-            return None
-
-    def get_prop(self, propName):
-        try:
-            if self.prop is None:
-                self.read_properties()
-            ps = self.prop[propName][0]
-            return ps
-        except:
-            return None
-
-    def get_marks(self):
-        #print(self.name)
-        #print(self.prop)
-        if self.prop is None:
-            self.read_properties()
-        if self.attr is None:
-            self.read_data()
-        ml = {}
-        for pk in self.prop:
-            if pk.endswith(Constants.START_SUFFIX):
-                pn = pk.replace(Constants.START_SUFFIX, "")
-                try:
-                    #print(pk, self.prop[pk])
-                    pv = int(self.prop[pk][0])
-                    pln = pn + Constants.LENGTH_SUFFIX
-                    if pln in self.prop:
-                        pl = int(self.prop[pln][0])
-                    else:
-                        pl = 1
-                    ml[pn] = self.attr.value[pv:pv+pl].mean()
-                except:
-                    ml[pn] = self.attr.value[0]
-        return ml
+                        logger.log(logging.WARNING, "Error reading channel %s" % self.get_name())
 
 
 class ShotDumper:
@@ -482,7 +472,9 @@ class ShotDumper:
                     self.zipFile = self.open_zip_file(self.outFolder)
                     for item in item_list:
                         print("Saving from %s", item.get_name())
-                        item.save_data(self.logFile, self.zipFile)
+                        item.save(self.logFile, self.zipFile)
+                        ##self.logFile.flush()
+                        ##self.zipFile.flush()
                     self.zipFile.close()
                     # Write zip file name
                     zfn = os.path.basename(self.zipFile.filename)
