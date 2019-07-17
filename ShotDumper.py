@@ -78,7 +78,7 @@ class TestDevice:
             entry = "TestDev/chanTestDev_%d.xtx"%self.n
             zip_file.writestr(entry, buf)
             entry = "TestDev/paramchanTestDev_%d.xtx"%self.n
-            zip_file.writestr(entry, "name=TestDev_%d"%self.n)
+            zip_file.writestr(entry, "name=TestDev_%d\r\nxlabel=Point number"%self.n)
 
 
 class AdlinkADC:
