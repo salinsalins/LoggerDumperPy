@@ -25,7 +25,7 @@ progVersion = "2.0"
 configFileName = progNameShort + ".json"
 
 config = {}
-item_list = []
+items_list = []
 
 def print_exception_info(level=logging.DEBUG):
     logger.log(level, "Exception ", exc_info=True)
@@ -368,12 +368,14 @@ class ShotDumper:
         self.lockFile = None
         self.locked = False
         self.shot = 0
+        self.logFile = None
+        self.zipFile = None
 
         self.device_list = []
 
     def read_config(self, file_name=configFileName):
         global config
-        global item_list
+        global items_list
         try :
             # Read config from file
             with open(file_name, 'r') as configfile:
@@ -395,21 +397,21 @@ class ShotDumper:
             # Restore devices
             if 'devices' not in config:
                 logger.log(logging.WARNING, "No elements declared")
-                item_list = []
+                items_list = []
                 return
             items = config["devices"]
             if len(items) <= 0:
                 logger.log(logging.WARNING, "No elements declared")
                 return
-            for d in items:
+            for unit in items:
                 try:
-                    if 'import' in d:
-                        exec(d["import"])
-                    item = eval(d["init"])
-                    item_list.append(item)
-                    logger.log(logging.DEBUG, "Element %s added to list" % str(d))
+                    if 'import' in unit:
+                        exec(unit["import"])
+                    item = eval(unit["init"])
+                    items_list.append(item)
+                    logger.log(logging.DEBUG, "Element %s added to list" % str(unit))
                 except:
-                    logger.log(logging.WARNING, "Error in element %s processing" % str(d))
+                    logger.log(logging.WARNING, "Error in element %s processing" % str(unit))
                     print_exception_info()
             logger.info('Configuration restored from %s' % file_name)
             return True
@@ -438,12 +440,12 @@ class ShotDumper:
         # Active item count
         count = 0
         n = 0
-        for item in item_list :
-            try :
+        for item in items_list :
+            try:
                 if item.activate():
                     count += 1
             except:
-                item_list.remove(item)
+                items_list.remove(item)
                 logger.log(logging.ERROR, "Element %d removed from list due to activation error" % n)
                 print_exception_info()
             n += 1
@@ -455,7 +457,7 @@ class ShotDumper:
             try :
                 new_shot = False
                 n = 0
-                for item in item_list:
+                for item in items_list:
                     try :
                         # Reactivate all items
                         item.activate()
@@ -463,7 +465,7 @@ class ShotDumper:
                             new_shot = True
                             break
                     except:
-                        item_list.remove(item)
+                        items_list.remove(item)
                         logger.log(logging.ERROR, "Element %d removed from list due to activation error" % n)
                         print_exception_info()
                     n += 1
@@ -487,15 +489,13 @@ class ShotDumper:
                     self.logFile.write('; Shot=%d' % self.shot)
                     # Open zip file
                     self.zipFile = self.open_zip_file(self.outFolder)
-                    for item in item_list:
+                    for item in items_list:
                         print("Saving from %s"%item.get_name())
                         try:
                             item.save(self.logFile, self.zipFile)
                         except:
                             logger.log(logging.WARNING, "Exception saving data from %s"%str(item))
                             print_exception_info()
-                        ##self.logFile.flush()
-                        ##self.zipFile.flush()
                     self.zipFile.close()
                     zfn = os.path.basename(self.zipFile.filename)
                     self.logFile.write('; File=%s' % zfn)
