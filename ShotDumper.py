@@ -470,8 +470,11 @@ class ShotDumper:
                         print_exception_info()
                     n += 1
                 if new_shot:
+                    dts = self.date_time_stamp()
                     self.shot += 1
-                    print("\n%s New Shot %d" % (self.time_stamp(), self.shot))
+                    config['shot'] = self.shot
+                    config['shot_time'] = dts
+                    print("\n%s New Shot %d" % (dts, self.shot))
                     if not self.locked:
                         self.make_folder()
                         self.lock_dir(self.outFolder)
@@ -484,7 +487,7 @@ class ShotDumper:
                         self.unlock_dir()
 
                     # Write date and time
-                    self.logFile.write(self.date_time_stamp())
+                    self.logFile.write(dts)
                     # Write shot number
                     self.logFile.write('; Shot=%d' % self.shot)
                     # Open zip file
@@ -502,12 +505,12 @@ class ShotDumper:
                     self.logFile.write('\n')
                     self.logFile.close()
                     self.unlock_dir()
+                    self.write_config()
                     print("%s Waiting for next shot ..." % self.time_stamp())
             except:
                 logger.log(logging.CRITICAL, "Unexpected exception")
                 print_exception_info()
                 return
-            self.write_config()
             time.sleep(config['sleep'])
 
     def make_folder(self):
