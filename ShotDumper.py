@@ -83,20 +83,21 @@ class TestDevice:
 
 class AdlinkADC:
     class Channel:
-        def __init__(self, adc, name):
+        def __init__(self, adc, name, x=None):
             self.dev = adc
             if type(name) is int:
                 self.name = 'chany' + str(name)
             else:
-                self.name = name
+                self.name = str(name)
             self.prop = None
             self.attr = None
-            self.xvalue = None
+            self.x_data = x
 
         def read_properties(self):
             # Read signal properties
             ap = self.dev.db.get_device_attribute_property(self.dev.name, self.name)
             self.prop = ap[self.name]
+            return self.prop
 
         def read_data(self):
             self.attr = self.dev.devProxy.read_attribute(self.name)
@@ -104,11 +105,12 @@ class AdlinkADC:
 
         def read_x_data(self):
             if not self.name.startswith('chany'):
-                self.read_data()
-                self.xvalue = np.arange(len(self.attr.value))
+                if self.attr is None:
+                    self.read_data()
+                self.x_data = np.arange(len(self.attr.value))
             else:
-                self.xvalue = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
-            return self.xvalue
+                self.x_data = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
+            return self.x_data
 
         def get_prop_as_boolean(self, propName):
             propVal = None
@@ -337,7 +339,7 @@ class AdlinkADC:
                 retry_count = 3
                 while retry_count > 0:
                     try :
-                        chan = AdlinkADC.Channel(self, a)
+                        chan = AdlinkADC.Channel(self, a, x=self.x_data)
                         # Read save_data and save_log flags
                         sdf = chan.get_prop_as_boolean("save_data")
                         slf = chan.get_prop_as_boolean("save_log")
@@ -347,7 +349,7 @@ class AdlinkADC:
                             if sdf:
                                 chan.read_data()
                                 self.save_data(zip_file, chan)
-                            if slf:
+                                self.x_data = chan.x_data
                                 self.save_log(log_file, chan)
                         break
                     except:
