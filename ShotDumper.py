@@ -371,13 +371,11 @@ class ShotDumper:
     def __init__(self):
         self.outRootDir = ".\\data\\"
         self.outFolder = ".\\data\\"
-        self.devList = []
         self.lockFile = None
         self.locked = False
         self.shot = 0
         self.logFile = None
         self.zipFile = None
-        self.device_list = []
 
     def read_config(self, file_name=configFileName):
         global config
