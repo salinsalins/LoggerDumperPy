@@ -215,8 +215,6 @@ class AdlinkADC:
     def new_shot(self):
         ns = self.read_shot()
         if self.shot < ns:
-            self.shot = ns
-            self.x_data = None
             return True
         return False
 
@@ -329,7 +327,14 @@ class AdlinkADC:
                 fmt = "; %s = %7.3f %s"
                 log_file.write(fmt % (mark_name, mark_value, unit))
 
-    def save(self, log_file, zip_file):
+    def save(self, log_file, zip_file, force=False):
+        # If force is True, read data anyway
+        if not force:
+            # Check for new shot.
+            if not self.new_shot():
+                # Do nothing if no new shot
+                return
+        self.shot = self.read_shot()
         atts = self.devProxy.get_attribute_list()
         self.x_data = None
         # Retry_count = 0
@@ -345,6 +350,7 @@ class AdlinkADC:
                         # Save signal properties
                         if sdf or slf:
                             self.save_prop(zip_file, chan)
+                            # Save signal data and log
                             if sdf:
                                 chan.read_data()
                                 self.save_data(zip_file, chan)
@@ -352,7 +358,7 @@ class AdlinkADC:
                                 self.save_log(log_file, chan)
                         break
                     except:
-                        logger.log(logging.WARNING, "Adlink %s data save exception" % self.get_name())
+                        logger.log(logging.WARNING, "Adlink ADC %s data read exception" % self.get_name())
                         print_exception_info()
                         retry_count -= 1
                     if retry_count > 0:
@@ -371,12 +377,12 @@ class ShotDumper:
         self.shot = 0
         self.logFile = None
         self.zipFile = None
-
         self.device_list = []
 
     def read_config(self, file_name=configFileName):
         global config
         global items_list
+        items_list = []
         try :
             # Read config from file
             with open(file_name, 'r') as configfile:
@@ -397,22 +403,21 @@ class ShotDumper:
                 self.shot = config['shot']
             # Restore devices
             if 'devices' not in config:
-                logger.log(logging.WARNING, "No elements declared")
-                items_list = []
-                return
+                logger.log(logging.WARNING, "No units declared")
+                raise Exception("No units declared")
             items = config["devices"]
             if len(items) <= 0:
-                logger.log(logging.WARNING, "No elements declared")
-                return
+                logger.log(logging.WARNING, "No units declared")
+                raise Exception("No units declared")
             for unit in items:
                 try:
                     if 'import' in unit:
                         exec(unit["import"])
                     item = eval(unit["init"])
                     items_list.append(item)
-                    logger.log(logging.DEBUG, "Element %s added to list" % str(unit))
+                    logger.log(logging.DEBUG, "Unit %s has been added for processing" % str(item))
                 except:
-                    logger.log(logging.WARNING, "Error in element %s processing" % str(unit))
+                    logger.log(logging.WARNING, "Error creating unit %s" % str(unit))
                     print_exception_info()
             logger.info('Configuration restored from %s' % file_name)
             return True
