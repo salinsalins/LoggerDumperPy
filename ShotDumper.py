@@ -450,11 +450,11 @@ class ShotDumper:
                     count += 1
             except:
                 items_list.remove(item)
-                logger.log(logging.ERROR, "Element %d removed from list due to activation error" % n)
+                logger.log(logging.ERROR, "Unit %d removed from list due to activation error" % n)
                 print_exception_info()
             n += 1
         if count <= 0 :
-            logger.log(logging.CRITICAL, "No active elements")
+            logger.log(logging.CRITICAL, "No active units")
             return
         # Main loop
         while True :
@@ -470,7 +470,7 @@ class ShotDumper:
                             break
                     except:
                         items_list.remove(item)
-                        logger.log(logging.ERROR, "Element %d removed from list due to activation error" % n)
+                        logger.log(logging.ERROR, "Unit %d removed from list due to activation error" % n)
                         print_exception_info()
                     n += 1
                 if new_shot:
