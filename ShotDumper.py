@@ -107,7 +107,7 @@ class AdlinkADC:
             if not self.name.startswith('chany'):
                 if self.attr is None:
                     self.read_data()
-                self.x_data = np.arange(len(self.attr.value))
+                self.x_data = numpy.arange(len(self.attr.value))
             else:
                 self.x_data = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
             return self.x_data
@@ -333,7 +333,6 @@ class AdlinkADC:
     def save(self, log_file, zip_file):
         atts = self.devProxy.get_attribute_list()
         self.x_data = None
-        # Retry_count = 0
         for a in atts:
             if a.startswith("chany"):
                 retry_count = 3
