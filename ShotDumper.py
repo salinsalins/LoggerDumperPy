@@ -7,7 +7,7 @@ import datetime
 import time
 import zipfile
 
-import numpy as np
+import numpy
 #import tango
 
 # Configure logging
@@ -25,7 +25,7 @@ progVersion = "2.0"
 configFileName = progNameShort + ".json"
 
 config = {}
-items_list = []
+devices_list = []
 
 def print_exception_info(level=logging.DEBUG):
     logger.log(level, "Exception ", exc_info=True)
@@ -71,7 +71,7 @@ class TestDevice:
         if self.points > 0:
             buf = ""
             for k in range(self.points):
-                s = '%f; %f' % (float(k), np.sin(time.time()+float(self.n)+float(k)/100.0)+0.1*np.sin(time.time()+float(k)/5.0))
+                s = '%f; %f' % (float(k), numpy.sin(time.time()+float(self.n)+float(k)/100.0)+0.1*numpy.sin(time.time()+float(k)/5.0))
                 buf += s.replace(",", ".")
                 if k < self.points-1:
                     buf += '\r\n'
@@ -364,20 +364,17 @@ class AdlinkADC:
 
 class ShotDumper:
     def __init__(self):
-        self.outRootDir = ".\\data\\"
         self.outFolder = ".\\data\\"
-        self.devList = []
         self.lockFile = None
         self.locked = False
         self.shot = 0
         self.logFile = None
         self.zipFile = None
 
-        self.device_list = []
 
     def read_config(self, file_name=configFileName):
         global config
-        global items_list
+        global devices_list
         try :
             # Read config from file
             with open(file_name, 'r') as configfile:
@@ -398,22 +395,22 @@ class ShotDumper:
                 self.shot = config['shot']
             # Restore devices
             if 'devices' not in config:
-                logger.log(logging.WARNING, "No elements declared")
-                items_list = []
+                logger.log(logging.WARNING, "No devices declared")
+                devices_list = []
                 return
             items = config["devices"]
             if len(items) <= 0:
-                logger.log(logging.WARNING, "No elements declared")
+                logger.log(logging.WARNING, "No devices declared")
                 return
             for unit in items:
                 try:
-                    if 'import' in unit:
-                        exec(unit["import"])
-                    item = eval(unit["init"])
-                    items_list.append(item)
-                    logger.log(logging.DEBUG, "Element %s added to list" % str(unit))
+                    if 'exec' in unit:
+                        exec(unit["exec"])
+                    item = eval(unit["eval"])
+                    devices_list.append(item)
+                    logger.log(logging.DEBUG, "Device %s added to list" % str(unit["eval"]))
                 except:
-                    logger.log(logging.WARNING, "Error in element %s processing" % str(unit))
+                    logger.log(logging.WARNING, "Error in device processing %s" % str(unit))
                     print_exception_info()
             logger.info('Configuration restored from %s' % file_name)
             return True
@@ -435,31 +432,32 @@ class ShotDumper:
             return False
 
     def process(self) :
+        global devices_list
+
         self.logFile = None
         self.zipFile = None
 
         # Activate items in item_list
-        # Active item count
-        count = 0
+        count = 0   # Active item count
         n = 0
-        for item in items_list :
+        for item in devices_list :
             try:
                 if item.activate():
                     count += 1
             except:
-                items_list.remove(item)
-                logger.log(logging.ERROR, "Element %d removed from list due to activation error" % n)
+                devices_list.remove(item)
+                logger.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                 print_exception_info()
             n += 1
         if count <= 0 :
-            logger.log(logging.CRITICAL, "No active elements")
+            logger.log(logging.CRITICAL, "No active devices")
             return
         # Main loop
         while True :
             try :
                 new_shot = False
                 n = 0
-                for item in items_list:
+                for item in devices_list:
                     try :
                         # Reactivate all items
                         item.activate()
@@ -467,8 +465,8 @@ class ShotDumper:
                             new_shot = True
                             break
                     except:
-                        items_list.remove(item)
-                        logger.log(logging.ERROR, "Element %d removed from list due to activation error" % n)
+                        devices_list.remove(item)
+                        logger.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                         print_exception_info()
                     n += 1
                 if new_shot:
@@ -477,16 +475,14 @@ class ShotDumper:
                     config['shot'] = self.shot
                     config['shot_time'] = dts
                     print("\n%s New Shot %d" % (dts, self.shot))
-                    if not self.locked:
-                        self.make_folder()
-                        self.lock_dir(self.outFolder)
-                        self.logFile = self.open_log_file(self.outFolder)
-                    else:
+                    self.make_log_folder()
+                    if self.locked:
                         logger.log(logging.WARNING, "Unexpected lock")
                         self.zipFile.close()
                         self.logFile.close()
-                        self.logFile = self.open_log_file(self.outFolder)
                         self.unlock_dir()
+                    self.lock_dir(self.outFolder)
+                    self.logFile = self.open_log_file(self.outFolder)
 
                     # Write date and time
                     self.logFile.write(dts)
@@ -494,7 +490,7 @@ class ShotDumper:
                     self.logFile.write('; Shot=%d' % self.shot)
                     # Open zip file
                     self.zipFile = self.open_zip_file(self.outFolder)
-                    for item in items_list:
+                    for item in devices_list:
                         print("Saving from %s"%item.get_name())
                         try:
                             item.save(self.logFile, self.zipFile)
@@ -515,19 +511,20 @@ class ShotDumper:
                 return
             time.sleep(config['sleep'])
 
-    def make_folder(self):
-        self.outFolder = os.path.join(self.outRootDir, self.get_log_folder_name())
+    def make_log_folder(self):
+        of = os.path.join(self.outRootDir, self.get_log_folder())
         try:
-            if not os.path.exists(self.outFolder):
-                os.makedirs(self.outFolder)
-                logger.log(logging.DEBUG, "Folder %s has been created", self.outFolder)
-                return True
+            if not os.path.exists(of):
+                os.makedirs(of)
+                logger.log(logging.DEBUG, "Output folder %s has been created", self.outFolder)
+            self.outFolder = of
+            return True
         except:
             self.outFolder = None
             logger.log(logging.CRITICAL, "Can not create output folder %s", self.outFolder)
             return False
 
-    def get_log_folder_name(self):
+    def get_log_folder(self):
         ydf = datetime.datetime.today().strftime('%Y')
         mdf = datetime.datetime.today().strftime('%Y-%m')
         ddf = datetime.datetime.today().strftime('%Y-%m-%d')
