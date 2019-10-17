@@ -8,7 +8,7 @@ import time
 import zipfile
 
 import numpy
-#import tango
+import tango
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ configFileName = progNameShort + ".json"
 
 config = {}
 devices_list = []
+
 
 def print_exception_info(level=logging.DEBUG):
     logger.log(level, "Exception ", exc_info=True)
@@ -75,9 +76,9 @@ class TestDevice:
                 buf += s.replace(",", ".")
                 if k < self.points-1:
                     buf += '\r\n'
-            entry = "TestDev/chanTestDev_%d.xtx"%self.n
+            entry = "TestDev/chanTestDev_%d.txt"%self.n
             zip_file.writestr(entry, buf)
-            entry = "TestDev/paramchanTestDev_%d.xtx"%self.n
+            entry = "TestDev/paramchanTestDev_%d.txt"%self.n
             zip_file.writestr(entry, "name=TestDev_%d\r\nxlabel=Point number"%self.n)
 
 

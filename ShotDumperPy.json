@@ -1,15 +1,15 @@
 {
     "sleep": 1.0,
-    "Loglevel": 10,
+    "Loglevel": 40,
     "outDir": ".\\data\\",
     "devices": [
         {
-            "eval": "TestDevice(delta_t=3.0, points=650)"
+            "eval": "AdlinkADC()"
         },
         {
             "eval": "TestDevice(points=650)"
         }
     ],
-    "shot": 202,
-    "shot_time": "2019-10-14 12:02:27"
+    "shot": 213,
+    "shot_time": "2019-10-17 22:24:13"
 }
