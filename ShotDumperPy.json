@@ -7,6 +7,6 @@
             "eval": "AdlinkADC(host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
         }
     ],
-    "shot": 224,
-    "shot_time": "2019-10-18 01:36:57"
+    "shot": 225,
+    "shot_time": "2019-10-18 02:06:39"
 }
