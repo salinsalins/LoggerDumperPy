@@ -1,12 +1,12 @@
 {
     "sleep": 1.0,
     "Loglevel": 40,
-    "outDir": ".\\data\\",
+    "outDir": "D:\\data\\",
     "devices": [
         {
             "eval": "AdlinkADC(host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
         }
     ],
-    "shot": 221,
-    "shot_time": "2019-10-18 00:25:18"
+    "shot": 224,
+    "shot_time": "2019-10-18 01:36:57"
 }

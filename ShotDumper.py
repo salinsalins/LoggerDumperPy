@@ -378,7 +378,6 @@ class ShotDumper:
         self.logFile = None
         self.zipFile = None
 
-
     def read_config(self, file_name=configFileName):
         global config
         global devices_list
@@ -527,8 +526,8 @@ class ShotDumper:
             self.outFolder = of
             return True
         except:
-            self.outFolder = None
             logger.log(logging.CRITICAL, "Can not create output folder %s", self.outFolder)
+            self.outFolder = None
             return False
 
     def get_log_folder(self):
