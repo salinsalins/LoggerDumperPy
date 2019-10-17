@@ -239,7 +239,7 @@ class AdlinkADC:
         if len(y) != len(x):
             if len(x) < n:
                 n = len(x)
-            logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %n" % n)
+            logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
             #return outbuf
 
         if avgc < 1:
@@ -333,8 +333,11 @@ class AdlinkADC:
                 else:
                     print("%14s = %7.3f %s\r\n" % (pmn, mark_value, unit), end='')
 
-                fmt = "; %s = %7.3f %s"
-                log_file.write(fmt % (mark_name, mark_value, unit))
+                format = chan.get_prop('format')
+                if format is None or '' == format:
+                    format = '%6.2f'
+                outstr = "; %s = "%mark_name + format%mark_value + " %s"%unit
+                log_file.write(outstr)
 
     def save(self, log_file, zip_file):
         atts = self.devProxy.get_attribute_list()
