@@ -108,6 +108,7 @@ class AdlinkADC:
             if not self.name.startswith('chany'):
                 if self.attr is None:
                     self.read_data()
+                # Generate 1 increment array as x
                 self.x_data = numpy.arange(len(self.attr.value))
             else:
                 self.x_data = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
@@ -234,13 +235,17 @@ class AdlinkADC:
             return outbuf
         if len(y) <= 0 or len(x) <= 0 :
             return outbuf
-        if len(y) > len(x):
-            return outbuf
+        n = len(y)
+        if len(y) != len(x):
+            if len(x) < n:
+                n = len(x)
+            logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %n" % n)
+            #return outbuf
 
         if avgc < 1:
             avgc = 1
 
-        for i in range(len(y)):
+        for i in range(n):
             xs += x[i]
             ys += y[i]
             ns += 1.0
@@ -266,9 +271,9 @@ class AdlinkADC:
         avg = chan.get_prop_as_int("save_avg")
         if avg < 1:
             avg = 1
-        if self.x_data is None:
-            self.x_data = chan.read_x_data()
-        buf = self.convert_to_buf(self.x_data, chan.attr.value, avg)
+        if chan.x_data is None or len(chan.x_data) != len(chan.attr.value):
+            chan.x_data = chan.read_x_data()
+        buf = self.convert_to_buf(chan.x_data, chan.attr.value, avg)
         zip_file.writestr(entry, buf)
 
     def save_prop(self, zip_file, chan):
@@ -339,7 +344,7 @@ class AdlinkADC:
                 retry_count = 3
                 while retry_count > 0:
                     try :
-                        chan = AdlinkADC.Channel(self, a, x=self.x_data)
+                        chan = AdlinkADC.Channel(self, a)
                         # Read save_data and save_log flags
                         sdf = chan.get_prop_as_boolean("save_data")
                         slf = chan.get_prop_as_boolean("save_log")
@@ -349,7 +354,6 @@ class AdlinkADC:
                             if sdf:
                                 chan.read_data()
                                 self.save_data(zip_file, chan)
-                                self.x_data = chan.x_data
                                 self.save_log(log_file, chan)
                         break
                     except:
