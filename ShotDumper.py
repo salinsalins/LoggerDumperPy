@@ -377,7 +377,7 @@ class TangoAttribute:
         self.dev = dev
         self.folder = folder
         self.active = False
-        self.timeout = time.time()
+        self.time = time.time()
         self.devProxy = None
         self.db = None
         self.attr = None
@@ -398,9 +398,19 @@ class TangoAttribute:
         self.prop = ap[self.name]
         return self.prop
 
-    def read_data(self):
+    def read_attribute(self):
+        self.read_properties()
         self.attr = self.devProxy.read_attribute(self.name)
-        return self.attr.value
+        self.time = time.time()
+        v = self.attr.value
+        if self.attr.data_format != tango._tango.AttrDataFormat.SCALAR:
+            logger.log(logging.WARNING, "Non scalar attribute %s" % self.name)
+            if self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
+                logger.log(logging.WARNING, "First value for SPECRUM attribute used")
+                v = self.attr.value[0]
+            else:
+                raise ValueError
+        return v
 
     def get_name(self):
         return "%s:%d/%s" % (self.host, self.port, self.name)
@@ -412,11 +422,12 @@ class TangoAttribute:
         try:
             self.db = tango.Database()
             self.devProxy = tango.DeviceProxy(self.get_name())
+            self.time = time.time()
             self.active = True
             logger.log(logging.DEBUG, "Device %s activated" % self.get_name())
         except:
             self.active = False
-            self.timeout = time.time() + 10000
+            self.time = time.time()
             logger.log(logging.ERROR, "Device %s activation error" % self.get_name())
         return self.active
 
@@ -427,16 +438,37 @@ class TangoAttribute:
         retry_count = 3
         while retry_count > 0:
             try:
-                self.read_data()
+                v = self.read_attribute()
                 break
             except:
-                logger.log(logging.DEBUG, "Device %s read exception" % self.get_name())
+                logger.log(logging.DEBUG, "Attribute %s read exception" % self.get_name())
                 print_exception_info()
                 retry_count -= 1
             if retry_count == 0:
-                logger.log(logging.WARNING, "Error reading device %s" % self.get_name())
+                logger.log(logging.WARNING, "Retry count exceeded reading attribute %s" % self.get_name())
                 self.active = False
                 self.timeout = time.time()
+                return
+        v = float(v)
+        # attribute label
+        label = self.get_prop('label')
+        if label is None or '' == label:
+            label = self.get_prop('name')
+        if label is None or '' == label:
+            label = self.name
+        # units
+        unit = self.get_prop('unit')
+        # calibration coefficient for conversion to units
+        coeff = self.get_prop('display_unit')
+        if coeff is None:
+            coeff = 1.0
+        else:
+            coeff = float(coeff)
+        fmt = self.get_prop('format')
+        if fmt is None or '' == fmt:
+            fmt = '%6.2f'
+        outstr = ('; %s = ' + fmt + ' %s') % (label, v*coeff, unit)
+        log_file.write(outstr)
 
 
 class ShotDumper:
