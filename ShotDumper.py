@@ -367,6 +367,76 @@ class AdlinkADC:
                         logger.log(logging.WARNING, "Error reading channel %s" % self.get_name())
 
 
+class TangoAttribute:
+    def __init__(self, name, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', folder=None):
+        self.name = name
+        self.host = host
+        self.port = port
+        self.dev = dev
+        self.folder = folder
+        self.active = False
+        self.timeout = time.time()
+        self.devProxy = None
+        self.db = None
+        self.attr = None
+        self.prop = None
+
+    def get_prop(self, property):
+        try:
+            if self.prop is None:
+                self.read_properties()
+            ps = self.prop[property][0]
+            return ps
+        except:
+            return None
+
+    def read_properties(self):
+        # read all properties
+        ap = self.db.get_device_attribute_property(self.dev, self.name)
+        self.prop = ap[self.name]
+        return self.prop
+
+    def read_data(self):
+        self.attr = self.devProxy.read_attribute(self.name)
+        return self.attr.value
+
+    def get_name(self):
+        return "%s:%d/%s" % (self.host, self.port, self.name)
+
+    def __str__(self):
+        return self.get_name()
+
+    def activate(self):
+        try:
+            self.db = tango.Database()
+            self.devProxy = tango.DeviceProxy(self.get_name())
+            self.active = True
+            logger.log(logging.DEBUG, "Device %s activated" % self.get_name())
+        except:
+            self.active = False
+            self.timeout = time.time() + 10000
+            logger.log(logging.ERROR, "Device %s activation error" % self.get_name())
+        return self.active
+
+    def new_shot(self):
+        return False
+
+    def save(self, log_file, zip_file):
+        retry_count = 3
+        while retry_count > 0:
+            try:
+                self.read_data()
+                break
+            except:
+                logger.log(logging.DEBUG, "Device %s read exception" % self.get_name())
+                print_exception_info()
+                retry_count -= 1
+            if retry_count == 0:
+                logger.log(logging.WARNING, "Error reading device %s" % self.get_name())
+                self.active = False
+                self.timeout = time.time()
+
+
 class ShotDumper:
     def __init__(self):
         self.outRootDir = ".\\data\\"
