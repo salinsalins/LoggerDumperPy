@@ -406,7 +406,7 @@ class TangoAttribute:
         if self.attr.data_format != tango._tango.AttrDataFormat.SCALAR:
             logger.log(logging.WARNING, "Non scalar attribute %s" % self.name)
             if self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
-                logger.log(logging.WARNING, "First value for SPECRUM attribute used")
+                logger.log(logging.WARNING, "First value for SPECRUM attribute was used")
                 v = self.attr.value[0]
             else:
                 raise ValueError
@@ -419,16 +419,19 @@ class TangoAttribute:
         return self.get_name()
 
     def activate(self):
+        if self.active:
+            return True
         try:
             self.db = tango.Database()
-            self.devProxy = tango.DeviceProxy(self.get_name())
+            self.devProxy = tango.DeviceProxy(self.dev)
             self.time = time.time()
             self.active = True
-            logger.log(logging.DEBUG, "Device %s activated" % self.get_name())
+            logger.log(logging.DEBUG, "Device %s activated" % self.dev)
         except:
             self.active = False
             self.time = time.time()
-            logger.log(logging.ERROR, "Device %s activation error" % self.get_name())
+            logger.log(logging.ERROR, "Device %s activation error" % self.dev)
+            print_exception_info()
         return self.active
 
     def new_shot(self):

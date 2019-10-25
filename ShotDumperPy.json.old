@@ -1,15 +1,18 @@
 {
     "sleep": 1.0,
-    "Loglevel": 10,
+    "Loglevel": 40,
     "outDir": "D:\\data\\",
     "devices": [
         {
             "eval": "TestDevice(delta_t=3.0, points = 300)"
         },
         {
+            "eval": "AdlinkADC(host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
+        },
+        {
             "eval": "TangoAttribute('chany0', dev='binp/nbi/adc0')"
         }
     ],
-    "shot": 234,
-    "shot_time": "2019-10-25 18:12:12"
+    "shot": 225,
+    "shot_time": "2019-10-18 02:06:39"
 }
