@@ -1,14 +1,12 @@
 {
     "sleep": 1.0,
-    "Loglevel": 10,
-    "outDir": ".\\data\\",
+    "Loglevel": 40,
+    "outDir": "D:\\data\\",
     "devices": [
         {
-            "init": "TestDevice(delta_t=3.0, points=650)"
-        },
-        {
-            "init": "TestDevice(points=650)"
+            "eval": "AdlinkADC(host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
         }
     ],
-    "shot": 196
+    "shot": 225,
+    "shot_time": "2019-10-18 02:06:39"
 }

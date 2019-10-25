@@ -1,12 +1,13 @@
 import os
 import os.path
+import sys
 import json
 import logging
 import datetime
 import time
 import zipfile
 
-import numpy as np
+import numpy
 import tango
 
 # Configure logging
@@ -24,7 +25,8 @@ progVersion = "2.0"
 configFileName = progNameShort + ".json"
 
 config = {}
-items_list = []
+devices_list = []
+
 
 def print_exception_info(level=logging.DEBUG):
     logger.log(level, "Exception ", exc_info=True)
@@ -70,13 +72,13 @@ class TestDevice:
         if self.points > 0:
             buf = ""
             for k in range(self.points):
-                s = '%f; %f' % (float(k), np.sin(time.time()+float(self.n)+float(k)/100.0)+0.1*np.sin(time.time()+float(k)/5.0))
+                s = '%f; %f' % (float(k), numpy.sin(time.time()+float(self.n)+float(k)/100.0)+0.1*numpy.sin(time.time()+float(k)/5.0))
                 buf += s.replace(",", ".")
                 if k < self.points-1:
                     buf += '\r\n'
-            entry = "TestDev/chanTestDev_%d.xtx"%self.n
+            entry = "TestDev/chanTestDev_%d.txt"%self.n
             zip_file.writestr(entry, buf)
-            entry = "TestDev/paramchanTestDev_%d.xtx"%self.n
+            entry = "TestDev/paramchanTestDev_%d.txt"%self.n
             zip_file.writestr(entry, "name=TestDev_%d\r\nxlabel=Point number"%self.n)
 
 
@@ -106,7 +108,8 @@ class AdlinkADC:
             if not self.name.startswith('chany'):
                 if self.attr is None:
                     self.read_data()
-                self.x_data = np.arange(len(self.attr.value))
+                # Generate 1 increment array as x
+                self.x_data = numpy.arange(len(self.attr.value))
             else:
                 self.x_data = self.dev.devProxy.read_attribute(self.name.replace('y', 'x')).value
             return self.x_data
@@ -215,6 +218,8 @@ class AdlinkADC:
     def new_shot(self):
         ns = self.read_shot()
         if self.shot < ns:
+            self.shot = ns
+            self.x_data = None
             return True
         return False
 
@@ -230,13 +235,17 @@ class AdlinkADC:
             return outbuf
         if len(y) <= 0 or len(x) <= 0 :
             return outbuf
-        if len(y) > len(x):
-            return outbuf
+        n = len(y)
+        if len(y) != len(x):
+            if len(x) < n:
+                n = len(x)
+            logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
+            #return outbuf
 
         if avgc < 1:
             avgc = 1
 
-        for i in range(len(y)):
+        for i in range(n):
             xs += x[i]
             ys += y[i]
             ns += 1.0
@@ -262,9 +271,9 @@ class AdlinkADC:
         avg = chan.get_prop_as_int("save_avg")
         if avg < 1:
             avg = 1
-        if self.x_data is None:
-            self.x_data = chan.read_x_data()
-        buf = self.convert_to_buf(self.x_data, chan.attr.value, avg)
+        if chan.x_data is None or len(chan.x_data) != len(chan.attr.value):
+            chan.x_data = chan.read_x_data()
+        buf = self.convert_to_buf(chan.x_data, chan.attr.value, avg)
         zip_file.writestr(entry, buf)
 
     def save_prop(self, zip_file, chan):
@@ -324,41 +333,34 @@ class AdlinkADC:
                 else:
                     print("%14s = %7.3f %s\r\n" % (pmn, mark_value, unit), end='')
 
-                fmt = "; %s = %7.3f %s"
-                log_file.write(fmt % (mark_name, mark_value, unit))
+                format = chan.get_prop('format')
+                if format is None or '' == format:
+                    format = '%6.2f'
+                outstr = "; %s = "%mark_name + format%mark_value + " %s"%unit
+                log_file.write(outstr)
 
-    def save(self, log_file, zip_file, force=False):
-        # If force is True, read data anyway
-        if not force:
-            # Check for new shot.
-            if not self.new_shot():
-                # Do nothing if no new shot
-                return
-        self.shot = self.read_shot()
+    def save(self, log_file, zip_file):
         atts = self.devProxy.get_attribute_list()
         self.x_data = None
-        # Retry_count = 0
         for a in atts:
             if a.startswith("chany"):
                 retry_count = 3
                 while retry_count > 0:
                     try :
-                        chan = AdlinkADC.Channel(self, a, x=self.x_data)
+                        chan = AdlinkADC.Channel(self, a)
                         # Read save_data and save_log flags
                         sdf = chan.get_prop_as_boolean("save_data")
                         slf = chan.get_prop_as_boolean("save_log")
                         # Save signal properties
                         if sdf or slf:
                             self.save_prop(zip_file, chan)
-                            # Save signal data and log
                             if sdf:
                                 chan.read_data()
                                 self.save_data(zip_file, chan)
-                                self.x_data = chan.x_data
                                 self.save_log(log_file, chan)
                         break
                     except:
-                        logger.log(logging.WARNING, "Adlink ADC %s data read exception" % self.get_name())
+                        logger.log(logging.WARNING, "Adlink %s data save exception" % self.get_name())
                         print_exception_info()
                         retry_count -= 1
                     if retry_count > 0:
@@ -439,7 +441,6 @@ class TangoAttribute:
 
 class ShotDumper:
     def __init__(self):
-        self.outRootDir = ".\\data\\"
         self.outFolder = ".\\data\\"
         self.lockFile = None
         self.locked = False
@@ -449,8 +450,7 @@ class ShotDumper:
 
     def read_config(self, file_name=configFileName):
         global config
-        global items_list
-        items_list = []
+        global devices_list
         try :
             # Read config from file
             with open(file_name, 'r') as configfile:
@@ -471,21 +471,22 @@ class ShotDumper:
                 self.shot = config['shot']
             # Restore devices
             if 'devices' not in config:
-                logger.log(logging.WARNING, "No units declared")
-                raise Exception("No units declared")
+                logger.log(logging.WARNING, "No devices declared")
+                devices_list = []
+                return
             items = config["devices"]
             if len(items) <= 0:
-                logger.log(logging.WARNING, "No units declared")
-                raise Exception("No units declared")
+                logger.log(logging.WARNING, "No devices declared")
+                return
             for unit in items:
                 try:
-                    if 'import' in unit:
-                        exec(unit["import"])
-                    item = eval(unit["init"])
-                    items_list.append(item)
-                    logger.log(logging.DEBUG, "Unit %s has been added for processing" % str(item))
+                    if 'exec' in unit:
+                        exec(unit["exec"])
+                    item = eval(unit["eval"])
+                    devices_list.append(item)
+                    logger.log(logging.DEBUG, "Device %s added to list" % str(unit["eval"]))
                 except:
-                    logger.log(logging.WARNING, "Error creating unit %s" % str(unit))
+                    logger.log(logging.WARNING, "Error in device processing %s" % str(unit))
                     print_exception_info()
             logger.info('Configuration restored from %s' % file_name)
             return True
@@ -507,31 +508,32 @@ class ShotDumper:
             return False
 
     def process(self) :
+        global devices_list
+
         self.logFile = None
         self.zipFile = None
 
         # Activate items in item_list
-        # Active item count
-        count = 0
+        count = 0   # Active item count
         n = 0
-        for item in items_list :
+        for item in devices_list :
             try:
                 if item.activate():
                     count += 1
             except:
-                items_list.remove(item)
-                logger.log(logging.ERROR, "Unit %d removed from list due to activation error" % n)
+                devices_list.remove(item)
+                logger.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                 print_exception_info()
             n += 1
         if count <= 0 :
-            logger.log(logging.CRITICAL, "No active units")
+            logger.log(logging.CRITICAL, "No active devices")
             return
         # Main loop
         while True :
             try :
                 new_shot = False
                 n = 0
-                for item in items_list:
+                for item in devices_list:
                     try :
                         # Reactivate all items
                         item.activate()
@@ -539,8 +541,8 @@ class ShotDumper:
                             new_shot = True
                             break
                     except:
-                        items_list.remove(item)
-                        logger.log(logging.ERROR, "Unit %d removed from list due to activation error" % n)
+                        devices_list.remove(item)
+                        logger.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                         print_exception_info()
                     n += 1
                 if new_shot:
@@ -549,16 +551,14 @@ class ShotDumper:
                     config['shot'] = self.shot
                     config['shot_time'] = dts
                     print("\n%s New Shot %d" % (dts, self.shot))
-                    if not self.locked:
-                        self.make_folder()
-                        self.lock_dir(self.outFolder)
-                        self.logFile = self.open_log_file(self.outFolder)
-                    else:
+                    self.make_log_folder()
+                    if self.locked:
                         logger.log(logging.WARNING, "Unexpected lock")
                         self.zipFile.close()
                         self.logFile.close()
-                        self.logFile = self.open_log_file(self.outFolder)
                         self.unlock_dir()
+                    self.lock_dir(self.outFolder)
+                    self.logFile = self.open_log_file(self.outFolder)
 
                     # Write date and time
                     self.logFile.write(dts)
@@ -566,7 +566,7 @@ class ShotDumper:
                     self.logFile.write('; Shot=%d' % self.shot)
                     # Open zip file
                     self.zipFile = self.open_zip_file(self.outFolder)
-                    for item in items_list:
+                    for item in devices_list:
                         print("Saving from %s"%item.get_name())
                         try:
                             item.save(self.logFile, self.zipFile)
@@ -587,19 +587,20 @@ class ShotDumper:
                 return
             time.sleep(config['sleep'])
 
-    def make_folder(self):
-        self.outFolder = os.path.join(self.outRootDir, self.get_log_folder_name())
+    def make_log_folder(self):
+        of = os.path.join(self.outRootDir, self.get_log_folder())
         try:
-            if not os.path.exists(self.outFolder):
-                os.makedirs(self.outFolder)
-                logger.log(logging.DEBUG, "Folder %s has been created", self.outFolder)
-                return True
+            if not os.path.exists(of):
+                os.makedirs(of)
+                logger.log(logging.DEBUG, "Output folder %s has been created", self.outFolder)
+            self.outFolder = of
+            return True
         except:
-            self.outFolder = None
             logger.log(logging.CRITICAL, "Can not create output folder %s", self.outFolder)
+            self.outFolder = None
             return False
 
-    def get_log_folder_name(self):
+    def get_log_folder(self):
         ydf = datetime.datetime.today().strftime('%Y')
         mdf = datetime.datetime.today().strftime('%Y-%m')
         ddf = datetime.datetime.today().strftime('%Y-%m-%d')
