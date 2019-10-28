@@ -532,16 +532,77 @@ class TangoAttribute:
                 outbuf += s.replace(",", ".")
         return outbuf
 
+    def get_marks(self):
+        if self.prop is None:
+            self.read_all_properties()
+        if self.attr is None:
+            self.read_attribute()
+        ml = {}
+        for pk in self.prop:
+            if pk.endswith("_start"):
+                pn = pk.replace("_start", "")
+                try:
+                    pv = int(self.prop[pk][0])
+                    pln = pk.replace("_start", "_length")
+                    if pln in self.prop:
+                        pl = int(self.prop[pln][0])
+                    else:
+                        pl = 1
+                    ml[pn] = self.attr.value[pv:pv + pl].mean()
+                except:
+                    ml[pn] = 0.0
+        return ml
+
     def save_log(self, log_file):
         try:
             if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
-                v = float(self.attr.value)
+                v = self.attr.value
+                if isinstance(v, (int, float, complex)) and not isinstance(v, bool):
+                    v = self.fmt % (v * self.coeff)
+                else:
+                    v = str(v)
+                outstr = ('; %s = ' + v + ' %s') % (self.label, self.unit)
+                log_file.write(outstr)
             elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
+                self.marks = self.get_marks()
+                # find zero value
+                zero = 0.0
+                if "zero" in self.marks:
+                    zero = self.marks["zero"]
+                # convert all marks to mark_value = (mark - zero)*coeff
+                for mark in self.marks:
+                    first_line = True
+                    # if it is not zero mark
+                    if not "zero" == mark:
+                        mark_value = (self.marks[mark] - zero) * self.coeff
+                        mark_name = mark
+                        # default mark renamed to label
+                        if mark_name == "mark":
+                            mark_name = self.label
+                        # print mark name = value
+                        if first_line:
+                            print("%10s " % self.name, end='')
+                            first_line = False
+                        else:
+                            print("%10s " % "  ", end='')
+                        pmn = mark_name
+                        if len(mark_name) > 14:
+                            pmn = mark_name[:5] + '...' + mark_name[-6:]
+                        if abs(mark_value) >= 1000.0:
+                            print("%14s = %7.0f %s\r\n" % (pmn, mark_value, self.unit), end='')
+                        elif abs(mark_value) >= 100.0:
+                            print("%14s = %7.1f %s\r\n" % (pmn, mark_value, self.unit), end='')
+                        elif abs(mark_value) >= 10.0:
+                            print("%14s = %7.2f %s\r\n" % (pmn, mark_value, self.unit), end='')
+                        else:
+                            print("%14s = %7.3f %s\r\n" % (pmn, mark_value, self.unit), end='')
+
+                        outstr = ('; %s = ' + self.fmt + ' %s') % (mark_name, mark_value * self.coeff, self.unit)
+                        log_file.write(outstr)
+
                 v = float(self.attr.value[0])
             else:
                 return
-            outstr = ('; %s = ' + self.fmt + ' %s') % (self.label, v * self.coeff, self.unit)
-            log_file.write(outstr)
         except:
             logger.log(logging.WARNING, "Log save error for %s" % self.get_name())
 
@@ -549,7 +610,7 @@ class TangoAttribute:
         entry = self.folder + "/" + self.name + ".txt"
         try:
             if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
-                buf = str(float(self.attr.value))
+                buf = str(self.attr.value)
             elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
                 avg = self.get_prop_as_int("save_avg")
                 if avg < 1:

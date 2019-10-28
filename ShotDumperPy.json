@@ -10,6 +10,6 @@
             "eval": "TangoAttribute('binp/nbi/adc0', 'Shot_id', force=True)"
         }
     ],
-    "shot": 248,
-    "shot_time": "2019-10-28 12:05:40"
+    "shot": 249,
+    "shot_time": "2019-10-28 12:44:20"
 }
