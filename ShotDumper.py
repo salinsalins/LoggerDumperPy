@@ -287,13 +287,13 @@ class AdlinkADC:
 
     def save_log(self, log_file, chan):
         # Signal label = default mark name
-        label = chan.get_prop('label')
+        label = chan.get_property('label')
         if label is None or '' == label:
-            label = chan.get_prop('name')
+            label = chan.get_property('name')
         if label is None or '' == label:
             label = chan.name
         # Units
-        unit = chan.get_prop('unit')
+        unit = chan.get_property('unit')
         # Calibration coefficient for conversion to units
         coeff = chan.get_prop_as_float("display_unit")
         if coeff is None or coeff == 0.0:
@@ -333,7 +333,7 @@ class AdlinkADC:
                 else:
                     print("%14s = %7.3f %s\r\n" % (pmn, mark_value, unit), end='')
 
-                format = chan.get_prop('format')
+                format = chan.get_property('format')
                 if format is None or '' == format:
                     format = '%6.2f'
                 outstr = "; %s = "%mark_name + format%mark_value + " %s"%unit
@@ -370,12 +370,14 @@ class AdlinkADC:
 
 
 class TangoAttribute:
-    def __init__(self, name, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', folder=None):
-        self.name = name
+    def __init__(self, device, attribute_name, host='192.168.1.41', port=10000, folder=None, force=False):
+        self.dev = device
+        self.name = attribute_name
         self.host = host
         self.port = port
-        self.dev = dev
         self.folder = folder
+        self.force = force
+        self.retry_count = 3
         self.active = False
         self.time = time.time()
         self.devProxy = None
@@ -383,23 +385,54 @@ class TangoAttribute:
         self.attr = None
         self.prop = None
 
-    def get_prop(self, property):
+    def get_property(self, prop):
         try:
             if self.prop is None:
-                self.read_properties()
-            ps = self.prop[property][0]
+                self.read_all_properties()
+            ps = self.prop[prop][0]
             return ps
         except:
             return None
 
-    def read_properties(self):
+    def get_prop_as_boolean(self, prop):
+        val = None
+        try:
+            prop_str = self.get_property(prop).lower()
+            if prop_str == "true":
+                val = True
+            elif prop_str == "on":
+                val = True
+            elif prop_str == "1":
+                val = True
+            elif prop_str == "y":
+                val = True
+            elif prop_str == "yes":
+                val = True
+            else:
+                val = False
+            return val
+        except:
+            return None
+
+    def get_prop_as_int(self, prop):
+        try:
+            return int(self.get_property(prop))
+        except:
+            return None
+
+    def get_prop_as_float(self, prop):
+        try:
+            return float(self.get_property(prop))
+        except:
+            return None
+
+    def read_all_properties(self):
         # read all properties
         ap = self.db.get_device_attribute_property(self.dev, self.name)
         self.prop = ap[self.name]
         return self.prop
 
     def read_attribute(self):
-        self.read_properties()
         self.attr = self.devProxy.read_attribute(self.name)
         self.time = time.time()
         v = self.attr.value
@@ -437,41 +470,168 @@ class TangoAttribute:
     def new_shot(self):
         return False
 
+    def convert_to_buf(self, avgc, y=None, x=None):
+        outbuf = ''
+        if avgc < 1:
+            avgc = 1
+
+        if x is None:
+            # save only y values
+            fmt = '%f'
+            if y is None:
+                y = self.attr.value
+            n = len(y)
+            ys = 0.0
+            ns = 0.0
+            for k in range(n):
+                ys += y[k]
+                ns += 1.0
+                if ns >= avgc:
+                    if k >= avgc:
+                        outbuf.join('\r\n')
+                    s = fmt % (ys / ns)
+                    outbuf.join(s.replace(",", "."))
+                    ys = 0.0
+                    ns = 0.0
+            if ns > 0:
+                outbuf.join('\r\n')
+                s = fmt % (ys / ns)
+                outbuf.join(s.replace(",", "."))
+        else:
+            # save "x; y" pairs
+            fmt = '%f; %f'
+            if y is None:
+                y = self.attr.value
+            if y is None:
+                return ''
+            if len(y) <= 0 or len(x) <= 0 :
+                return ''
+            n = len(y)
+            if len(x) < n:
+                n = len(x)
+                logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
+            xs = 0.0
+            ys = 0.0
+            ns = 0.0
+            for k in range(n):
+                xs += x[k]
+                ys += y[k]
+                ns += 1.0
+                if ns >= avgc:
+                    if k >= avgc:
+                        outbuf.join('\r\n')
+                    s = fmt % (xs / ns, ys / ns)
+                    outbuf.join(s.replace(",", "."))
+                    xs = 0.0
+                    ys = 0.0
+                    ns = 0.0
+            if ns > 0:
+                outbuf.join('\r\n')
+                s = fmt % (xs / ns, ys / ns)
+                outbuf.join(s.replace(",", "."))
+        return outbuf
+
+    def save_log(self, log_file):
+        try:
+            if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
+                v = float(self.attr.value)
+            elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
+                v = float(self.attr.value[0])
+            else:
+                return
+            outstr = ('; %s = ' + self.fmt + ' %s') % (self.label, v * self.coeff, self.unit)
+            log_file.write(outstr)
+        except:
+            logger.log(logging.WARNING, "Log save error for %s" % self.get_name())
+
+    def save_data(self, zip_file):
+        entry = self.folder + "/" + self.name + ".txt"
+        try:
+            if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
+                buf = str(float(self.attr.value))
+            elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
+                avg = self.get_prop_as_int("save_avg")
+                if avg < 1:
+                    avg = 1
+                buf = self.convert_to_buf(avg)
+            else:
+                return
+
+            zip_file.writestr(entry, buf)
+        except:
+            logger.log(logging.WARNING, "Data save error for %s" % self.get_name())
+
+    def save_prop(self, zip_file):
+        entry = self.dev.folder + "/" + "param" + self.name + ".txt"
+        buf = "attribute=%s\r\n" % self.get_name()
+        for pr in self.prop:
+            buf.join('%s=%s\r\n' % (pr, self.prop[pr][0]))
+        zip_file.writestr(entry, buf)
+
     def save(self, log_file, zip_file):
-        retry_count = 3
-        while retry_count > 0:
+        self.read_all_properties()
+        # save_data and save_log flags
+        self.sdf = self.get_prop_as_boolean("save_data")
+        self.slf = self.get_prop_as_boolean("save_log")
+        # force save if requested during attribute creation
+        if self.force:
+            self.sdf = True
+            self.slf = True
+        # do not save if both flags are False
+        if not (self.sdf or self.slf):
+            return
+        # read attribute with retries
+        rc = self.retry_count
+        while rc > 0:
             try:
-                v = self.read_attribute()
+                self.read_attribute()
                 break
             except:
                 logger.log(logging.DEBUG, "Attribute %s read exception" % self.get_name())
                 print_exception_info()
-                retry_count -= 1
-            if retry_count == 0:
-                logger.log(logging.WARNING, "Retry count exceeded reading attribute %s" % self.get_name())
-                self.active = False
-                self.timeout = time.time()
-                return
-        v = float(v)
-        # attribute label
-        label = self.get_prop('label')
-        if label is None or '' == label:
-            label = self.get_prop('name')
-        if label is None or '' == label:
-            label = self.name
-        # units
-        unit = self.get_prop('unit')
-        # calibration coefficient for conversion to units
-        coeff = self.get_prop('display_unit')
-        if coeff is None:
-            coeff = 1.0
+                rc -= 1
+        if rc == 0:
+            logger.log(logging.WARNING, "Retry count exceeded reading attribute %s" % self.get_name())
+            self.active = False
+            self.time = time.time()
+            return
+
+        if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
+            logger.log(logging.DEBUG, "Scalar attribute %s" % self.name)
+        elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
+            logger.log(logging.DEBUG, "SPECRUM attribute %s" % self.name)
         else:
-            coeff = float(coeff)
-        fmt = self.get_prop('format')
-        if fmt is None or '' == fmt:
-            fmt = '%6.2f'
-        outstr = ('; %s = ' + fmt + ' %s') % (label, v*coeff, unit)
-        log_file.write(outstr)
+            logger.log(logging.WARNING, "Unsupported attribute format for %s" % self.name)
+            raise ValueError
+
+        # determine required attribute properties
+        # attribute label
+        self.label = self.get_property('label')
+        if self.label is None or '' == self.label:
+            self.label = self.get_property('name')
+        if self.label is None or '' == self.label:
+            self.label = self.name
+        # units
+        self.unit = self.get_property('unit')
+        # calibration coefficient for conversion to units
+        try:
+            cf = self.get_property('display_unit')
+            self.coeff = float(cf)
+        except:
+            self.coeff = 1.0
+        if self.coeff is None:
+            self.coeff = 1.0
+        # format string
+        self.fmt = self.get_property('format')
+        if self.fmt is None or '' == self.fmt:
+            self.fmt = '%6.2f'
+
+        if self.sdf or self.slf:
+            self.save_prop(zip_file)
+        if self.slf:
+            self.save_log(log_file)
+        if self.sdf:
+            self.save_data(zip_file)
 
 
 class ShotDumper:
