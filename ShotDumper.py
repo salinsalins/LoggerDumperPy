@@ -376,14 +376,24 @@ class TangoAttribute:
         self.host = host
         self.port = port
         self.folder = folder
+        if folder is None:
+            self.folder = "%s_%d_%s" % (self.host, self.port, self.name)
         self.force = force
         self.retry_count = 3
         self.active = False
         self.time = time.time()
+        # tango related
         self.devProxy = None
         self.db = None
         self.attr = None
         self.prop = None
+        # additional
+        self.label = ''
+        self.unit = ''
+        self.coeff = 1.0
+        self.fmt = '%6.2f'
+        self.slf = False
+        self.sdf = False
 
     def get_property(self, prop):
         try:
@@ -435,15 +445,6 @@ class TangoAttribute:
     def read_attribute(self):
         self.attr = self.devProxy.read_attribute(self.name)
         self.time = time.time()
-        v = self.attr.value
-        if self.attr.data_format != tango._tango.AttrDataFormat.SCALAR:
-            logger.log(logging.WARNING, "Non scalar attribute %s" % self.name)
-            if self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
-                logger.log(logging.WARNING, "First value for SPECRUM attribute was used")
-                v = self.attr.value[0]
-            else:
-                raise ValueError
-        return v
 
     def get_name(self):
         return "%s:%d/%s" % (self.host, self.port, self.name)
@@ -488,15 +489,15 @@ class TangoAttribute:
                 ns += 1.0
                 if ns >= avgc:
                     if k >= avgc:
-                        outbuf.join('\r\n')
+                        outbuf += '\r\n'
                     s = fmt % (ys / ns)
-                    outbuf.join(s.replace(",", "."))
+                    outbuf += s.replace(",", ".")
                     ys = 0.0
                     ns = 0.0
             if ns > 0:
-                outbuf.join('\r\n')
+                outbuf += '\r\n'
                 s = fmt % (ys / ns)
-                outbuf.join(s.replace(",", "."))
+                outbuf += s.replace(",", ".")
         else:
             # save "x; y" pairs
             fmt = '%f; %f'
@@ -519,16 +520,16 @@ class TangoAttribute:
                 ns += 1.0
                 if ns >= avgc:
                     if k >= avgc:
-                        outbuf.join('\r\n')
+                        outbuf += '\r\n'
                     s = fmt % (xs / ns, ys / ns)
-                    outbuf.join(s.replace(",", "."))
+                    outbuf += s.replace(",", ".")
                     xs = 0.0
                     ys = 0.0
                     ns = 0.0
             if ns > 0:
-                outbuf.join('\r\n')
+                outbuf += '\r\n'
                 s = fmt % (xs / ns, ys / ns)
-                outbuf.join(s.replace(",", "."))
+                outbuf += s.replace(",", ".")
         return outbuf
 
     def save_log(self, log_file):
@@ -562,10 +563,10 @@ class TangoAttribute:
             logger.log(logging.WARNING, "Data save error for %s" % self.get_name())
 
     def save_prop(self, zip_file):
-        entry = self.dev.folder + "/" + "param" + self.name + ".txt"
+        entry = self.folder + "/" + "param" + self.name + ".txt"
         buf = "attribute=%s\r\n" % self.get_name()
         for pr in self.prop:
-            buf.join('%s=%s\r\n' % (pr, self.prop[pr][0]))
+            buf += '%s=%s\r\n' % (pr, self.prop[pr][0])
         zip_file.writestr(entry, buf)
 
     def save(self, log_file, zip_file):
