@@ -7,9 +7,9 @@
             "eval": "TestDevice(delta_t=3.0, points = 300)"
         },
         {
-            "eval": "TangoAttribute('binp/nbi/adc0', 'chany0')"
+            "eval": "TangoAttribute('binp/nbi/adc0', 'Shot_id', force=True)"
         }
     ],
-    "shot": 243,
-    "shot_time": "2019-10-28 11:49:12"
+    "shot": 248,
+    "shot_time": "2019-10-28 12:05:40"
 }
