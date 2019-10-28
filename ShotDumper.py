@@ -599,8 +599,10 @@ class TangoAttribute:
 
                         outstr = ('; %s = ' + self.fmt + ' %s') % (mark_name, mark_value * self.coeff, self.unit)
                         log_file.write(outstr)
-
-                v = float(self.attr.value[0])
+                if len(self.marks) <= 0:
+                    v = float(self.attr.value[0])
+                    outstr = ('; %s = ' + self.fmt + ' %s') % (mark_name, v * self.coeff, self.unit)
+                    log_file.write(outstr)
             else:
                 return
         except:
