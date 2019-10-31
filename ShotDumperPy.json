@@ -7,9 +7,9 @@
             "eval": "TestDevice(delta_t=3.0, points = 300)"
         },
         {
-            "eval": "TangoAttribute('binp/nbi/adc0', 'Shot_id', force=True)"
+            "eval": "AdlinkADC(dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
         }
     ],
-    "shot": 249,
-    "shot_time": "2019-10-28 12:44:20"
+    "shot": 253,
+    "shot_time": "2019-10-31 18:56:12"
 }

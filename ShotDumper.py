@@ -287,13 +287,13 @@ class AdlinkADC:
 
     def save_log(self, log_file, chan):
         # Signal label = default mark name
-        label = chan.get_property('label')
+        label = chan.get_prop('label')
         if label is None or '' == label:
-            label = chan.get_property('name')
+            label = chan.get_prop('name')
         if label is None or '' == label:
             label = chan.name
         # Units
-        unit = chan.get_property('unit')
+        unit = chan.get_prop('unit')
         # Calibration coefficient for conversion to units
         coeff = chan.get_prop_as_float("display_unit")
         if coeff is None or coeff == 0.0:
@@ -333,7 +333,7 @@ class AdlinkADC:
                 else:
                     print("%14s = %7.3f %s\r\n" % (pmn, mark_value, unit), end='')
 
-                format = chan.get_property('format')
+                format = chan.get_prop('format')
                 if format is None or '' == format:
                     format = '%6.2f'
                 outstr = "; %s = "%mark_name + format%mark_value + " %s"%unit
