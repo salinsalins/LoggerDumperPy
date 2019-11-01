@@ -21,7 +21,7 @@ logger.addHandler(console_handler)
 
 progName = "PyTango Shot Dumper"
 progNameShort = "ShotDumperPy"
-progVersion = "2.0"
+progVersion = "3.0"
 configFileName = progNameShort + ".json"
 
 config = {}
@@ -160,6 +160,8 @@ class AdlinkADC:
                 self.read_properties()
             if self.attr is None:
                 self.read_data()
+            if self.x_data is None:
+                self.read_x_data()
             ml = {}
             for pk in self.prop:
                 if pk.endswith("_start"):
@@ -171,7 +173,10 @@ class AdlinkADC:
                             pl = int(self.prop[pln][0])
                         else:
                             pl = 1
-                        ml[pn] = self.attr.value[pv:pv + pl].mean()
+                        dx = self.x_data[1] - self.x_data[0]
+                        n1 = (pv - self.x_data[0]) / dx
+                        n2 = (pv +  pl - self.x_data[0]) / dx
+                        ml[pn] = self.attr.value[n1:n2].mean()
                     except:
                         ml[pn] = 0.0
             return ml
