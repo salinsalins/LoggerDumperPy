@@ -4,12 +4,9 @@
     "outDir": "D:\\data\\",
     "devices": [
         {
-            "eval": "TestDevice(delta_t=3.0, points = 300)"
-        },
-        {
             "eval": "AdlinkADC(dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
         }
     ],
-    "shot": 253,
-    "shot_time": "2019-10-31 18:56:12"
+    "shot": 262,
+    "shot_time": "2019-11-01 11:49:58"
 }

@@ -174,8 +174,8 @@ class AdlinkADC:
                         else:
                             pl = 1
                         dx = self.x_data[1] - self.x_data[0]
-                        n1 = (pv - self.x_data[0]) / dx
-                        n2 = (pv +  pl - self.x_data[0]) / dx
+                        n1 = int((pv - self.x_data[0]) / dx)
+                        n2 = int((pv +  pl - self.x_data[0]) / dx)
                         ml[pn] = self.attr.value[n1:n2].mean()
                     except:
                         ml[pn] = 0.0
@@ -201,15 +201,16 @@ class AdlinkADC:
         return self.get_name()
 
     def activate(self):
-        try:
-            self.db = tango.Database()
-            self.devProxy = tango.DeviceProxy(self.get_name())
-            self.active = True
-            logger.log(logging.DEBUG, "ADC %s activated" % self.get_name())
-        except:
-            self.active = False
-            self.timeout = time.time() + 10000
-            logger.log(logging.ERROR, "ADC %s activation error" % self.get_name())
+        if not self.active:
+            try:
+                self.db = tango.Database()
+                self.devProxy = tango.DeviceProxy(self.get_name())
+                self.active = True
+                logger.log(logging.DEBUG, "ADC %s activated" % self.get_name())
+            except:
+                self.active = False
+                self.timeout = time.time() + 10000
+                logger.log(logging.ERROR, "ADC %s activation error" % self.get_name())
         return self.active
 
     def read_shot(self):
