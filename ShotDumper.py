@@ -21,7 +21,7 @@ logger.addHandler(console_handler)
 
 progName = "PyTango Shot Dumper"
 progNameShort = "ShotDumperPy"
-progVersion = "2.0"
+progVersion = "3.0"
 configFileName = progNameShort + ".json"
 
 config = {}
