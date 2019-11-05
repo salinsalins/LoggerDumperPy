@@ -943,11 +943,12 @@ class TangoAttribute:
                     avg = 1
                 buf = self.convert_to_buf(avg)
             else:
+                logger.log(logging.WARNING, "Unsupported attribute format for %s" % self.get_name())
                 return
 
             zip_file.writestr(entry, buf)
         except:
-            logger.log(logging.WARNING, "Data save error for %s" % self.get_name())
+            logger.log(logging.WARNING, "Attribute data save error for %s" % self.get_name())
 
     def save_prop(self, zip_file):
         entry = self.folder + "/" + "param" + self.name + ".txt"
@@ -973,6 +974,7 @@ class TangoAttribute:
         while rc > 0:
             try:
                 self.read_attribute()
+                self.time = time.time()
                 break
             except:
                 logger.log(logging.DEBUG, "Attribute %s read exception" % self.get_name())
@@ -1006,8 +1008,6 @@ class TangoAttribute:
             cf = self.get_property('display_unit')
             self.coeff = float(cf)
         except:
-            self.coeff = 1.0
-        if self.coeff is None:
             self.coeff = 1.0
         # format string
         self.fmt = self.get_property('format')
