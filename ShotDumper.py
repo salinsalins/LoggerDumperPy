@@ -176,12 +176,13 @@ class AdlinkADC:
                         ml[pn] = 0.0
             return ml
 
-    def __init__(self, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder="ADC_0"):
+    def __init__(self, host='192.168.1.41', port=10000, dev='binp/nbi/adc0', avg=100, folder="ADC_0", first=False):
         self.host = host
         self.port = port
         self.name = dev
         self.folder = folder
         self.avg = avg
+        self.first = first
         self.active = False
         self.shot = -1
         self.timeout = time.time()
@@ -217,9 +218,13 @@ class AdlinkADC:
 
     def new_shot(self):
         ns = self.read_shot()
+        if (not self.first) and (self.shot < 0):
+            self.shot = ns
+            return False
         if self.shot < ns:
             self.shot = ns
             self.x_data = None
+            self.first = False
             return True
         return False
 
