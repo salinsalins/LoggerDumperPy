@@ -1117,13 +1117,14 @@ class ShotDumper:
         if count <= 0 :
             logger.log(logging.CRITICAL, "No active devices")
             return
-        # Main loop
+        # main loop
+        print("%s Waiting for next shot ..." % self.time_stamp())
         while True :
             try :
                 new_shot = False
                 for item in devices_list:
                     try :
-                        # Reactivate all items
+                        # reactivate all items
                         item.activate()
                         # check for new shot
                         if item.new_shot():
@@ -1169,9 +1170,6 @@ class ShotDumper:
                     self.unlock_dir()
                     self.write_config()
                     print("%s Waiting for next shot ..." % self.time_stamp())
-                else:
-                    print("%s Waiting for next shot ..." % self.time_stamp())
-                    pass
             except:
                 logger.log(logging.CRITICAL, "Unexpected exception")
                 print_exception_info()
