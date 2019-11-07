@@ -1121,19 +1121,19 @@ class ShotDumper:
         while True :
             try :
                 new_shot = False
-                n = 0
                 for item in devices_list:
                     try :
                         # Reactivate all items
                         item.activate()
+                        # check for new shot
                         if item.new_shot():
                             new_shot = True
-                            break
+                            #break
                     except:
                         devices_list.remove(item)
                         logger.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                         print_exception_info()
-                    n += 1
+
                 if new_shot:
                     dts = self.date_time_stamp()
                     self.shot += 1
@@ -1148,7 +1148,6 @@ class ShotDumper:
                         self.unlock_dir()
                     self.lock_dir(self.outFolder)
                     self.logFile = self.open_log_file(self.outFolder)
-
                     # Write date and time
                     self.logFile.write(dts)
                     # Write shot number
@@ -1170,6 +1169,9 @@ class ShotDumper:
                     self.unlock_dir()
                     self.write_config()
                     print("%s Waiting for next shot ..." % self.time_stamp())
+                else:
+                    print("%s Waiting for next shot ..." % self.time_stamp())
+                    pass
             except:
                 logger.log(logging.CRITICAL, "Unexpected exception")
                 print_exception_info()

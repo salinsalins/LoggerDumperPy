@@ -4,7 +4,7 @@
     "outDir": "D:\\data\\",
     "devices": [
         {
-            "eval": "AdlinkADC(dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
+            "eval": "AdlinkADC(dev='binp/nbi/adc0', avg=100, folder='ADC_0', first=True)"
         }
     ],
     "shot": 262,
