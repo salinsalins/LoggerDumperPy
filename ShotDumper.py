@@ -700,7 +700,7 @@ class AdlinkADC:
 
 
 class TangoAttribute:
-    def __init__(self, device, attribute_name, host='192.168.1.41', port=10000, folder=None, force=False):
+    def __init__(self, device, attribute_name, host='192.168.1.41', port=10000, folder=None, force=True):
         self.dev = device
         self.name = attribute_name
         self.host = host
@@ -892,7 +892,8 @@ class TangoAttribute:
                 else:
                     v = str(v)
                 outstr = ('; %s = ' + v + ' %s') % (self.label, self.unit)
-                log_file.write(outstr)
+                log_file.write(outstr[2:])
+                print(outstr[1:])
             elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
                 self.marks = self.get_marks()
                 # find zero value
