@@ -700,14 +700,12 @@ class AdlinkADC:
 
 
 class TangoAttribute:
-    def __init__(self, device, attribute_name, host='192.168.1.41', port=10000, folder=None, force=True):
+    def __init__(self, device, attribute_name, folder=None, force=True):
         self.dev = device
         self.name = attribute_name
-        self.host = host
-        self.port = port
         self.folder = folder
         if folder is None:
-            self.folder = "%s_%d_%s" % (self.host, self.port, self.name)
+            self.folder = "%s/%s" % (self.dev, self.name)
         self.force = force
         self.retry_count = 3
         self.active = False
@@ -777,7 +775,7 @@ class TangoAttribute:
         self.time = time.time()
 
     def get_name(self):
-        return "%s:%d/%s" % (self.host, self.port, self.name)
+        return "%s/%s" % (self.dev, self.name)
 
     def __str__(self):
         return self.get_name()
