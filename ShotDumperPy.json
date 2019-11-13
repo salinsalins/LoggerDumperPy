@@ -8,8 +8,11 @@
         },
         {
             "eval": "TangoAttribute('ET7000_server/test/1', 'ai00', folder='test_ai00')"
+        },
+        {
+            "eval": "TangoAttribute('ET7000_server/test/1', 'ai00', folder='test_ai00')"
         }
     ],
-    "shot": 264,
-    "shot_time": "2019-11-13 10:45:15"
+    "shot": 273,
+    "shot_time": "2019-11-13 11:13:15"
 }

@@ -937,7 +937,7 @@ class TangoAttribute:
         except:
             logger.log(logging.WARNING, "Log save error for %s" % self.get_name())
 
-    def save_data(self, zip_file):
+    def save_data(self, zip_file:zipfile.ZipFile):
         entry = self.folder + "/" + self.name + ".txt"
         try:
             if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
@@ -950,7 +950,13 @@ class TangoAttribute:
             else:
                 logger.log(logging.WARNING, "Unsupported attribute format for %s" % self.get_name())
                 return
-
+            try:
+                info = zip_file.getinfo(entry)
+                self.folder += ("/" + self.dev + str(time.time()))
+                logger.log(logging.WARNING, "Duplicate entry %s in zip file. Folder is changed to %s." % (entry, self.folder))
+                entry = self.folder + "/" + self.name + ".txt"
+            except:
+                pass
             zip_file.writestr(entry, buf)
         except:
             logger.log(logging.WARNING, "Attribute data save error for %s" % self.get_name())
@@ -960,6 +966,14 @@ class TangoAttribute:
         buf = "attribute=%s\r\n" % self.get_name()
         for pr in self.prop:
             buf += '%s=%s\r\n' % (pr, self.prop[pr][0])
+        try:
+            info = zip_file.getinfo(entry)
+            self.folder += ("/" + self.dev + str(time.time()))
+            logger.log(logging.WARNING,
+                       "Duplicate entry %s in zip file. Folder is changed to %s." % (entry, self.folder))
+            entry = self.folder + "/" + self.name + ".txt"
+        except:
+            pass
         zip_file.writestr(entry, buf)
 
     def save(self, log_file, zip_file):
