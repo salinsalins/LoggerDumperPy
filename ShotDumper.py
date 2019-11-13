@@ -952,7 +952,9 @@ class TangoAttribute:
                 return
             try:
                 info = zip_file.getinfo(entry)
-                self.folder += ("/" + self.dev + str(time.time()))
+                self.folder += ("_" + self.dev + '_' + str(time.time()))
+                self.folder.replace('/', '_')
+                self.folder.replace('.', '_')
                 logger.log(logging.WARNING, "Duplicate entry %s in zip file. Folder is changed to %s." % (entry, self.folder))
                 entry = self.folder + "/" + self.name + ".txt"
             except:
@@ -968,7 +970,9 @@ class TangoAttribute:
             buf += '%s=%s\r\n' % (pr, self.prop[pr][0])
         try:
             info = zip_file.getinfo(entry)
-            self.folder += ("/" + self.dev + str(time.time()))
+            self.folder += ("_" + self.dev + '_' + str(time.time()))
+            self.folder.replace('/', '_')
+            self.folder.replace('.', '_')
             logger.log(logging.WARNING,
                        "Duplicate entry %s in zip file. Folder is changed to %s." % (entry, self.folder))
             entry = self.folder + "/" + self.name + ".txt"
