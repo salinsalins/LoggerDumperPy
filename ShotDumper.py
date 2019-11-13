@@ -938,7 +938,7 @@ class TangoAttribute:
             logger.log(logging.WARNING, "Log save error for %s" % self.get_name())
 
     def save_data(self, zip_file:zipfile.ZipFile):
-        entry = self.folder + "/" + self.name + ".txt"
+        entry = self.folder + "/" + self.label + ".txt"
         try:
             if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
                 buf = str(self.attr.value)
@@ -956,7 +956,7 @@ class TangoAttribute:
                 self.folder = self.folder.replace('/', '_')
                 self.folder = self.folder.replace('.', '_')
                 logger.log(logging.WARNING, "Duplicate entry %s in zip file. Folder is changed to %s" % (entry, self.folder))
-                entry = self.folder + "/" + self.name + ".txt"
+                entry = self.folder + "/" + self.label + ".txt"
             except:
                 pass
             zip_file.writestr(entry, buf)
@@ -964,7 +964,7 @@ class TangoAttribute:
             logger.log(logging.WARNING, "Attribute data save error for %s" % self.get_name())
 
     def save_prop(self, zip_file):
-        entry = self.folder + "/" + "param" + self.name + ".txt"
+        entry = self.folder + "/" + "param" + self.label + ".txt"
         buf = "attribute=%s\r\n" % self.get_name()
         for pr in self.prop:
             buf += '%s=%s\r\n' % (pr, self.prop[pr][0])
@@ -975,13 +975,19 @@ class TangoAttribute:
             self.folder = self.folder.replace('.', '_')
             logger.log(logging.WARNING,
                        "Duplicate entry %s in zip file. Folder is changed to %s." % (entry, self.folder))
-            entry = self.folder + "/" + "param" + self.name + ".txt"
+            entry = self.folder + "/" + "param" + self.label + ".txt"
         except:
             pass
         zip_file.writestr(entry, buf)
 
     def save(self, log_file, zip_file):
         self.read_all_properties()
+        # label
+        self.label = self.get_property('label')
+        if self.label is None or '' == self.label:
+            self.label = self.get_property('name')
+        if self.label is None or '' == self.label:
+            self.label = self.name
         # save_data and save_log flags
         self.sdf = self.get_prop_as_boolean("save_data")
         self.slf = self.get_prop_as_boolean("save_log")
