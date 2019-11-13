@@ -4,9 +4,12 @@
     "outDir": "D:\\data\\",
     "devices": [
         {
-            "eval": "AdlinkADC(dev='binp/nbi/adc0', avg=100, folder='ADC_0', first=True)"
+            "eval": "AdlinkADC(dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
+        },
+        {
+            "eval": "TangoAttribute('ET7000_server/test/1', 'ai00', folder='test_ai00')"
         }
     ],
-    "shot": 262,
-    "shot_time": "2019-11-01 11:49:58"
+    "shot": 264,
+    "shot_time": "2019-11-13 10:45:15"
 }

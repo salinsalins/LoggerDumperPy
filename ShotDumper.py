@@ -890,7 +890,7 @@ class TangoAttribute:
                 else:
                     v = str(v)
                 outstr = ('; %s = ' + v + ' %s') % (self.label, self.unit)
-                log_file.write(outstr[2:])
+                log_file.write(outstr)
                 print(outstr[1:])
             elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
                 self.marks = self.get_marks()
@@ -1070,9 +1070,13 @@ class ShotDumper:
                 try:
                     if 'exec' in unit:
                         exec(unit["exec"])
-                    item = eval(unit["eval"])
-                    devices_list.append(item)
-                    logger.log(logging.DEBUG, "Device %s added to list" % str(unit["eval"]))
+                    if 'eval' in unit:
+                        item = eval(unit["eval"])
+                        devices_list.append(item)
+                        logger.log(logging.DEBUG, "Device %s added" % str(unit["eval"]))
+                    else:
+                        logger.log(logging.DEBUG, "No 'eval' option for device %s" % unit)
+
                 except:
                     logger.log(logging.WARNING, "Error in device processing %s" % str(unit))
                     print_exception_info()
