@@ -1129,7 +1129,7 @@ class ShotDumper:
         self.logFile = None
         self.zipFile = None
 
-        # Activate items in item_list
+        # Activate items in devices_list
         count = 0   # Active item count
         n = 0
         for item in devices_list :
