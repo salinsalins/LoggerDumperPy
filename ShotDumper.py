@@ -143,7 +143,7 @@ class DumperDevice:
         self.time = time.time()
 
     def get_name(self):
-        return "%s:%d/%s" % (self.host, self.port, self.name)
+        return "%s:%d/%s" % (self.dev.host, self.dev.port, self.name)
 
     def __str__(self):
         return self.get_name()
