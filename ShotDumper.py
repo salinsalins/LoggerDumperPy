@@ -589,7 +589,7 @@ class AdlinkADC:
         if (not self.first) and (self.shot < 0):
             self.shot = ns
             return False
-        if self.shot < ns:
+        if self.shot != ns:
             self.shot = ns
             self.x_data = None
             self.first = False
