@@ -700,13 +700,14 @@ class AdlinkADC:
 
 
 class TangoAttribute:
-    def __init__(self, device, attribute_name, folder=None, force=True):
+    def __init__(self, device, attribute_name, folder=None, force=True, ahead=None):
         self.dev = device
         self.name = attribute_name
         self.folder = folder
         if folder is None:
             self.folder = "%s/%s" % (self.dev, self.name)
         self.force = force
+        self.ahead = ahead
         self.retry_count = 3
         self.active = False
         self.time = time.time()
@@ -773,6 +774,20 @@ class TangoAttribute:
     def read_attribute(self):
         self.attr = self.devProxy.read_attribute(self.name)
         self.time = time.time()
+        try:
+            if self.ahead is not None and self.devProxy.is_attribute_polled(self.name):
+                period = self.devProxy.get_attribute_poll_period(self.name)
+                n = self.ahead / period + 1
+                history = self.devProxy.attribute_history(self.name, n)
+                t = history[0].time.tv_sec + (1.0e-6 * history[0].time.tv_usec) + (1.0e-9 * history[0].time.tv_nsec)
+                if time.time() - t >= (self.ahead - 0.1):
+                    self.attr = history[0]
+                    logger.debug('Read from ahead buffer sucessful')
+                else:
+                    logger.debug('Can not read from ahead buffer')
+        except:
+            logger.debug('Exception in read_attribute', exc_info=True)
+
 
     def get_name(self):
         return "%s/%s" % (self.dev, self.name)
