@@ -23,19 +23,19 @@ def config_logger(name: str=__name__, level: int=logging.DEBUG):
     return logger
 
 # Configure logging
-logger = config_logger()
+LOGGER = config_logger()
 
-progName = "PyTango Shot Dumper"
-progNameShort = "ShotDumperPy"
-progVersion = "3.1"
-configFileName = progNameShort + ".json"
+PROG_NAME = "PyTango Shot Dumper"
+PROG_NAME_SHORT = "ShotDumperPy"
+PROG_VERSION = "3.1"
+CONFIG_FILE_NAME = PROG_NAME_SHORT + ".json"
 
-config = {}
-devices_list = []
+CONFIG = {}
+DEVICE_LIST = []
 
 
 def print_exception_info(level=logging.DEBUG):
-    logger.log(level, "Exception ", exc_info=True)
+    LOGGER.log(level, "Exception ", exc_info=True)
 
 
 def convert_to_buf(x, y, avgc, fmt='%f; %f'):
@@ -54,7 +54,7 @@ def convert_to_buf(x, y, avgc, fmt='%f; %f'):
         if len(y) != len(x):
             if len(x) < n:
                 n = len(x)
-            logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
+            LOGGER.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
 
         if avgc < 1:
             avgc = 1
@@ -162,11 +162,11 @@ class DumperDevice:
             self.devProxy = tango.DeviceProxy(self.dev)
             self.time = time.time()
             self.active = True
-            logger.log(logging.DEBUG, "Device %s activated" % self.dev)
+            LOGGER.log(logging.DEBUG, "Device %s activated" % self.dev)
         except:
             self.active = False
             self.time = time.time()
-            logger.log(logging.ERROR, "Device %s activation error" % self.dev)
+            LOGGER.log(logging.ERROR, "Device %s activation error" % self.dev)
             print_exception_info()
         return self.active
 
@@ -212,7 +212,7 @@ class DumperDevice:
             n = len(y)
             if len(x) < n:
                 n = len(x)
-                logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
+                LOGGER.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
             xs = 0.0
             ys = 0.0
             ns = 0.0
@@ -308,7 +308,7 @@ class DumperDevice:
             else:
                 return
         except:
-            logger.log(logging.WARNING, "Log save error for %s" % self.get_name())
+            LOGGER.log(logging.WARNING, "Log save error for %s" % self.get_name())
 
     def save_data(self, zip_file):
         entry = self.folder + "/" + self.name + ".txt"
@@ -325,7 +325,7 @@ class DumperDevice:
 
             zip_file.writestr(entry, buf)
         except:
-            logger.log(logging.WARNING, "Data save error for %s" % self.get_name())
+            LOGGER.log(logging.WARNING, "Data save error for %s" % self.get_name())
 
     def save_prop(self, zip_file):
         entry = self.folder + "/" + "param" + self.name + ".txt"
@@ -353,21 +353,21 @@ class DumperDevice:
                 self.read_attribute()
                 break
             except:
-                logger.log(logging.DEBUG, "Attribute %s read exception" % self.get_name())
+                LOGGER.log(logging.DEBUG, "Attribute %s read exception" % self.get_name())
                 print_exception_info()
                 rc -= 1
         if rc == 0:
-            logger.log(logging.WARNING, "Retry count exceeded reading attribute %s" % self.get_name())
+            LOGGER.log(logging.WARNING, "Retry count exceeded reading attribute %s" % self.get_name())
             self.active = False
             self.time = time.time()
             return
 
         if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
-            logger.log(logging.DEBUG, "Scalar attribute %s" % self.name)
+            LOGGER.log(logging.DEBUG, "Scalar attribute %s" % self.name)
         elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
-            logger.log(logging.DEBUG, "SPECRUM attribute %s" % self.name)
+            LOGGER.log(logging.DEBUG, "SPECRUM attribute %s" % self.name)
         else:
-            logger.log(logging.WARNING, "Unsupported attribute format for %s" % self.name)
+            LOGGER.log(logging.WARNING, "Unsupported attribute format for %s" % self.name)
             raise ValueError
 
         # determine required attribute properties
@@ -422,20 +422,20 @@ class TestDevice:
             return True
         self.active = True
         self.time = time.time()
-        logger.log(logging.DEBUG, "TestDevice %d activated" % self.n)
+        LOGGER.log(logging.DEBUG, "TestDevice %d activated" % self.n)
         return True
 
     def new_shot(self):
         if self.delta_t >= 0.0 and (time.time() - self.time) > self.delta_t:
             self.shot += 1
             self.time = time.time()
-            logger.log(logging.DEBUG, "TestDevice %d - New shot %d" % (self.n, self.shot))
+            LOGGER.log(logging.DEBUG, "TestDevice %d - New shot %d" % (self.n, self.shot))
             return True
-        logger.log(logging.DEBUG, "TestDevice %d - No new shot" % self.n)
+        LOGGER.log(logging.DEBUG, "TestDevice %d - No new shot" % self.n)
         return False
 
     def save(self, log_file, zip_file):
-        logger.log(logging.DEBUG, "TestDevice %d - Save" % self.n)
+        LOGGER.log(logging.DEBUG, "TestDevice %d - Save" % self.n)
         log_file.write('; TestDev_%d=%f'%(self.n, self.time))
         if self.points > 0:
             buf = ""
@@ -575,11 +575,11 @@ class AdlinkADC:
                 self.db = tango.Database()
                 self.devProxy = tango.DeviceProxy(self.get_name())
                 self.active = True
-                logger.log(logging.DEBUG, "ADC %s activated" % self.get_name())
+                LOGGER.log(logging.DEBUG, "ADC %s activated" % self.get_name())
             except:
                 self.active = False
                 self.timeout = time.time() + 10000
-                logger.log(logging.ERROR, "ADC %s activation error" % self.get_name())
+                LOGGER.log(logging.ERROR, "ADC %s activation error" % self.get_name())
         return self.active
 
     def read_shot(self):
@@ -696,13 +696,13 @@ class AdlinkADC:
                                 self.save_log(log_file, chan)
                         break
                     except:
-                        logger.log(logging.WARNING, "Adlink %s data save exception" % self.get_name())
+                        LOGGER.log(logging.WARNING, "Adlink %s data save exception" % self.get_name())
                         print_exception_info()
                         retry_count -= 1
                     if retry_count > 0:
-                        logger.log(logging.DEBUG, "Retry reading channel %s" % self.get_name())
+                        LOGGER.log(logging.DEBUG, "Retry reading channel %s" % self.get_name())
                     if retry_count == 0:
-                        logger.log(logging.WARNING, "Error reading channel %s" % self.get_name())
+                        LOGGER.log(logging.WARNING, "Error reading channel %s" % self.get_name())
 
 
 class TangoAttribute:
@@ -788,11 +788,11 @@ class TangoAttribute:
                 t = history[0].time.tv_sec + (1.0e-6 * history[0].time.tv_usec) + (1.0e-9 * history[0].time.tv_nsec)
                 if time.time() - t >= (self.ahead - 0.1):
                     self.attr = history[0]
-                    logger.debug('Read from ahead buffer sucessful')
+                    LOGGER.debug('Read from ahead buffer sucessful')
                 else:
-                    logger.debug('Can not read from ahead buffer')
+                    LOGGER.debug('Can not read from ahead buffer')
         except:
-            logger.debug('Exception in read_attribute', exc_info=True)
+            LOGGER.debug('Exception in read_attribute', exc_info=True)
 
 
     def get_name(self):
@@ -809,11 +809,11 @@ class TangoAttribute:
             self.devProxy = tango.DeviceProxy(self.dev)
             self.time = time.time()
             self.active = True
-            logger.log(logging.DEBUG, "Device %s activated" % self.dev)
+            LOGGER.log(logging.DEBUG, "Device %s activated" % self.dev)
         except:
             self.active = False
             self.time = time.time()
-            logger.log(logging.ERROR, "Device %s activation error" % self.dev)
+            LOGGER.log(logging.ERROR, "Device %s activation error" % self.dev)
             print_exception_info()
         return self.active
 
@@ -859,7 +859,7 @@ class TangoAttribute:
             n = len(y)
             if len(x) < n:
                 n = len(x)
-                logger.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
+                LOGGER.log(logging.WARNING, "X and Y arrays of different length, truncated to %d" % n)
             xs = 0.0
             ys = 0.0
             ns = 0.0
@@ -956,7 +956,7 @@ class TangoAttribute:
             else:
                 return
         except:
-            logger.log(logging.WARNING, "Log save error for %s" % self.get_name())
+            LOGGER.log(logging.WARNING, "Log save error for %s" % self.get_name())
 
     def save_data(self, zip_file:zipfile.ZipFile):
         entry = self.folder + "/" + self.label + ".txt"
@@ -969,20 +969,20 @@ class TangoAttribute:
                     avg = 1
                 buf = self.convert_to_buf(avg)
             else:
-                logger.log(logging.WARNING, "Unsupported attribute format for %s" % self.get_name())
+                LOGGER.log(logging.WARNING, "Unsupported attribute format for %s" % self.get_name())
                 return
             try:
                 info = zip_file.getinfo(entry)
                 self.folder += ("_" + self.dev + '_' + str(time.time()))
                 self.folder = self.folder.replace('/', '_')
                 self.folder = self.folder.replace('.', '_')
-                logger.log(logging.WARNING, "Duplicate entry %s in zip file. Folder is changed to %s" % (entry, self.folder))
+                LOGGER.log(logging.WARNING, "Duplicate entry %s in zip file. Folder is changed to %s" % (entry, self.folder))
                 entry = self.folder + "/" + self.label + ".txt"
             except:
                 pass
             zip_file.writestr(entry, buf)
         except:
-            logger.log(logging.WARNING, "Attribute data save error for %s" % self.get_name())
+            LOGGER.log(logging.WARNING, "Attribute data save error for %s" % self.get_name())
 
     def save_prop(self, zip_file):
         entry = self.folder + "/" + "param" + self.label + ".txt"
@@ -994,7 +994,7 @@ class TangoAttribute:
             self.folder += ("_" + self.dev + '_' + str(time.time()))
             self.folder = self.folder.replace('/', '_')
             self.folder = self.folder.replace('.', '_')
-            logger.log(logging.WARNING,
+            LOGGER.log(logging.WARNING,
                        "Duplicate entry %s in zip file. Folder is changed to %s." % (entry, self.folder))
             entry = self.folder + "/" + "param" + self.label + ".txt"
         except:
@@ -1027,21 +1027,21 @@ class TangoAttribute:
                 self.time = time.time()
                 break
             except:
-                logger.log(logging.DEBUG, "Attribute %s read exception" % self.get_name())
+                LOGGER.log(logging.DEBUG, "Attribute %s read exception" % self.get_name())
                 print_exception_info()
                 rc -= 1
         if rc == 0:
-            logger.log(logging.WARNING, "Retry count exceeded reading attribute %s" % self.get_name())
+            LOGGER.log(logging.WARNING, "Retry count exceeded reading attribute %s" % self.get_name())
             self.active = False
             self.time = time.time()
             return
 
         if self.attr.data_format == tango._tango.AttrDataFormat.SCALAR:
-            logger.log(logging.DEBUG, "Scalar attribute %s" % self.name)
+            LOGGER.log(logging.DEBUG, "Scalar attribute %s" % self.name)
         elif self.attr.data_format == tango._tango.AttrDataFormat.SPECTRUM:
-            logger.log(logging.DEBUG, "SPECRUM attribute %s" % self.name)
+            LOGGER.log(logging.DEBUG, "SPECRUM attribute %s" % self.name)
         else:
-            logger.log(logging.WARNING, "Unsupported attribute format for %s" % self.name)
+            LOGGER.log(logging.WARNING, "Unsupported attribute format for %s" % self.name)
             raise ValueError
 
         # determine required attribute properties
@@ -1081,35 +1081,35 @@ class ShotDumper:
         self.logFile = None
         self.zipFile = None
 
-    def read_config(self, file_name=configFileName):
-        global config
-        global devices_list
+    def read_config(self, file_name=CONFIG_FILE_NAME):
+        global CONFIG
+        global DEVICE_LIST
         try :
             # Read config from file
             with open(file_name, 'r') as configfile:
                 s = configfile.read()
-            config = json.loads(s)
+            CONFIG = json.loads(s)
             # Restore log level
             try:
-                logger.setLevel(config['Loglevel'])
+                LOGGER.setLevel(CONFIG['Loglevel'])
             except:
-                logger.setLevel(logging.DEBUG)
-            logger.log(logging.DEBUG, "Log level set to %d" % logger.level)
-            if 'sleep' not in config:
-                config["sleep"] = 1.0
+                LOGGER.setLevel(logging.DEBUG)
+            LOGGER.log(logging.DEBUG, "Log level set to %d" % LOGGER.level)
+            if 'sleep' not in CONFIG:
+                CONFIG["sleep"] = 1.0
             # Read output directory
-            if 'outDir' in config:
-                self.outRootDir = config["outDir"]
-            if 'shot' in config:
-                self.shot = config['shot']
+            if 'outDir' in CONFIG:
+                self.outRootDir = CONFIG["outDir"]
+            if 'shot' in CONFIG:
+                self.shot = CONFIG['shot']
             # Restore devices
-            if 'devices' not in config:
-                logger.log(logging.WARNING, "No devices declared")
-                devices_list = []
+            if 'devices' not in CONFIG:
+                LOGGER.log(logging.WARNING, "No devices declared")
+                DEVICE_LIST = []
                 return
-            items = config["devices"]
+            items = CONFIG["devices"]
             if len(items) <= 0:
-                logger.log(logging.WARNING, "No devices declared")
+                LOGGER.log(logging.WARNING, "No devices declared")
                 return
             for unit in items:
                 try:
@@ -1117,35 +1117,35 @@ class ShotDumper:
                         exec(unit["exec"])
                     if 'eval' in unit:
                         item = eval(unit["eval"])
-                        devices_list.append(item)
-                        logger.log(logging.DEBUG, "Device %s added" % str(unit["eval"]))
+                        DEVICE_LIST.append(item)
+                        LOGGER.log(logging.DEBUG, "Device %s added" % str(unit["eval"]))
                     else:
-                        logger.log(logging.DEBUG, "No 'eval' option for device %s" % unit)
+                        LOGGER.log(logging.DEBUG, "No 'eval' option for device %s" % unit)
 
                 except:
-                    logger.log(logging.WARNING, "Error in device processing %s" % str(unit))
+                    LOGGER.log(logging.WARNING, "Error in device processing %s" % str(unit))
                     print_exception_info()
-            logger.info('Configuration restored from %s' % file_name)
+            LOGGER.info('Configuration restored from %s' % file_name)
             return True
         except :
-            logger.info('Configuration restore error from %s' % file_name)
+            LOGGER.info('Configuration restore error from %s' % file_name)
             print_exception_info()
             return False
 
-    def write_config(self, file_name=configFileName):
-        global config
+    def write_config(self, file_name=CONFIG_FILE_NAME):
+        global CONFIG
         try :
-            config['shot'] = self.shot
+            CONFIG['shot'] = self.shot
             with open(file_name, 'w') as configfile:
-                configfile.write(json.dumps(config, indent=4))
-            logger.info('Configuration saved to %s' % file_name)
+                configfile.write(json.dumps(CONFIG, indent=4))
+            LOGGER.info('Configuration saved to %s' % file_name)
         except :
-            logger.info('Configuration save error to %s' % file_name)
+            LOGGER.info('Configuration save error to %s' % file_name)
             print_exception_info()
             return False
 
     def process(self) :
-        global devices_list
+        global DEVICE_LIST
 
         self.logFile = None
         self.zipFile = None
@@ -1153,24 +1153,24 @@ class ShotDumper:
         # Activate items in devices_list
         count = 0   # Active item count
         n = 0
-        for item in devices_list :
+        for item in DEVICE_LIST :
             try:
                 if item.activate():
                     count += 1
             except:
-                devices_list.remove(item)
-                logger.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
+                DEVICE_LIST.remove(item)
+                LOGGER.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                 print_exception_info()
             n += 1
         if count <= 0 :
-            logger.log(logging.CRITICAL, "No active devices")
+            LOGGER.log(logging.CRITICAL, "No active devices")
             return
         # main loop
         print("%s Waiting for next shot ..." % self.time_stamp())
         while True :
             try :
                 new_shot = False
-                for item in devices_list:
+                for item in DEVICE_LIST:
                     try :
                         # reactivate all items
                         item.activate()
@@ -1179,19 +1179,19 @@ class ShotDumper:
                             new_shot = True
                             #break
                     except:
-                        devices_list.remove(item)
-                        logger.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
+                        DEVICE_LIST.remove(item)
+                        LOGGER.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                         print_exception_info()
 
                 if new_shot:
                     dts = self.date_time_stamp()
                     self.shot += 1
-                    config['shot'] = self.shot
-                    config['shot_time'] = dts
+                    CONFIG['shot'] = self.shot
+                    CONFIG['shot_time'] = dts
                     print("\n%s New Shot %d" % (dts, self.shot))
                     self.make_log_folder()
                     if self.locked:
-                        logger.log(logging.WARNING, "Unexpected lock")
+                        LOGGER.log(logging.WARNING, "Unexpected lock")
                         self.zipFile.close()
                         self.logFile.close()
                         self.unlock_dir()
@@ -1203,12 +1203,12 @@ class ShotDumper:
                     self.logFile.write('; Shot=%d' % self.shot)
                     # Open zip file
                     self.zipFile = self.open_zip_file(self.outFolder)
-                    for item in devices_list:
+                    for item in DEVICE_LIST:
                         print("Saving from %s"%item.get_name())
                         try:
                             item.save(self.logFile, self.zipFile)
                         except:
-                            logger.log(logging.WARNING, "Exception saving data from %s"%str(item))
+                            LOGGER.log(logging.WARNING, "Exception saving data from %s" % str(item))
                             print_exception_info()
                     self.zipFile.close()
                     zfn = os.path.basename(self.zipFile.filename)
@@ -1219,21 +1219,21 @@ class ShotDumper:
                     self.write_config()
                     print("%s Waiting for next shot ..." % self.time_stamp())
             except:
-                logger.log(logging.CRITICAL, "Unexpected exception")
+                LOGGER.log(logging.CRITICAL, "Unexpected exception")
                 print_exception_info()
                 return
-            time.sleep(config['sleep'])
+            time.sleep(CONFIG['sleep'])
 
     def make_log_folder(self):
         of = os.path.join(self.outRootDir, self.get_log_folder())
         try:
             if not os.path.exists(of):
                 os.makedirs(of)
-                logger.log(logging.DEBUG, "Output folder %s has been created", self.outFolder)
+                LOGGER.log(logging.DEBUG, "Output folder %s has been created", self.outFolder)
             self.outFolder = of
             return True
         except:
-            logger.log(logging.CRITICAL, "Can not create output folder %s", self.outFolder)
+            LOGGER.log(logging.CRITICAL, "Can not create output folder %s", self.outFolder)
             self.outFolder = None
             return False
 
@@ -1247,7 +1247,7 @@ class ShotDumper:
     def lock_dir(self, folder):
         self.lockFile = open(os.path.join(folder, "lock.lock"), 'w+')
         self.locked = True
-        logger.log(logging.DEBUG, "Directory %s locked", folder)
+        LOGGER.log(logging.DEBUG, "Directory %s locked", folder)
 
     def open_log_file(self, folder=''):
         self.logFileName = os.path.join(folder, self.get_log_file_name())
@@ -1275,7 +1275,7 @@ class ShotDumper:
            self.lockFile.close()
            os.remove(self.lockFile.name)
         self.locked = False
-        logger.log(logging.DEBUG, "Directory unlocked")
+        LOGGER.log(logging.DEBUG, "Directory unlocked")
 
 
 if __name__ == '__main__':
@@ -1284,5 +1284,5 @@ if __name__ == '__main__':
         sd.read_config()
         sd.process()
     except:
-        logger.log(logging.CRITICAL, "Exception in %s", progNameShort)
+        LOGGER.log(logging.CRITICAL, "Exception in %s", PROG_NAME_SHORT)
         print_exception_info()
