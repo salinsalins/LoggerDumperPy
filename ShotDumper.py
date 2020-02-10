@@ -269,6 +269,18 @@ class AdlinkADC:
         except:
             return -1
 
+    def read_shot_time(self):
+        try:
+            elapsed = self.devProxy.read_attribute('Elapsed')
+            self.shot_time = time.time()
+            if elapsed.quality != tango._tango.AttrQuality.ATTR_VALID:
+                LOGGER.info('Non Valid attribute %s %s' % (elapsed.name, elapsed.quality))
+                return -self.shot_time
+            self.shot_time = self.shot_time - elapsed.value
+            return self.shot_time
+        except:
+            return -self.shot_time
+
     def new_shot(self):
         ns = self.read_shot()
         if (not self.first) and (self.shot < 0):
@@ -353,6 +365,8 @@ class AdlinkADC:
                     format = '%6.2f'
                 outstr = "; %s = "%mark_name + format%mark_value + " %s"%unit
                 log_file.write(outstr)
+        outstr = "; SHOT_TIME = %f" % self.read_shot_time()
+        log_file.write(outstr)
 
     def save(self, log_file, zip_file):
         atts = self.devProxy.get_attribute_list()
