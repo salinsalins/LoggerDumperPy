@@ -44,9 +44,9 @@ def convert_to_buf(x, y, avgc, fmt='%f; %f'):
         s = ''
         outbuf = ''
 
-        if y is None or x is None :
+        if y is None or x is None:
             return outbuf
-        if len(y) <= 0 or len(x) <= 0 :
+        if len(y) <= 0 or len(x) <= 0:
             return outbuf
         n = len(y)
         if len(y) != len(x):
@@ -375,7 +375,7 @@ class AdlinkADC:
             if a.startswith("chany"):
                 retry_count = 3
                 while retry_count > 0:
-                    try :
+                    try:
                         chan = AdlinkADC.Channel(self, a)
                         # Read save_data and save_log flags
                         sdf = chan.get_prop_as_boolean("save_data")
@@ -547,7 +547,7 @@ class TangoAttribute:
                 y = self.attr.value
             if y is None:
                 return ''
-            if len(y) <= 0 or len(x) <= 0 :
+            if len(y) <= 0 or len(x) <= 0:
                 return ''
             n = len(y)
             if len(x) < n:
@@ -777,7 +777,7 @@ class ShotDumper:
     def read_config(self, file_name=CONFIG_FILE_NAME):
         global CONFIG
         global DEVICE_LIST
-        try :
+        try:
             # Read config from file
             with open(file_name, 'r') as configfile:
                 s = configfile.read()
@@ -820,24 +820,24 @@ class ShotDumper:
                     print_exception_info()
             LOGGER.info('Configuration restored from %s' % file_name)
             return True
-        except :
+        except:
             LOGGER.info('Configuration restore error from %s' % file_name)
             print_exception_info()
             return False
 
     def write_config(self, file_name=CONFIG_FILE_NAME):
         global CONFIG
-        try :
+        try:
             CONFIG['shot'] = self.shot
             with open(file_name, 'w') as configfile:
                 configfile.write(json.dumps(CONFIG, indent=4))
             LOGGER.info('Configuration saved to %s' % file_name)
-        except :
+        except:
             LOGGER.info('Configuration save error to %s' % file_name)
             print_exception_info()
             return False
 
-    def process(self) :
+    def process(self):
         global DEVICE_LIST
 
         self.logFile = None
@@ -846,7 +846,7 @@ class ShotDumper:
         # Activate items in devices_list
         count = 0   # Active item count
         n = 0
-        for item in DEVICE_LIST :
+        for item in DEVICE_LIST:
             try:
                 if item.activate():
                     count += 1
@@ -855,16 +855,16 @@ class ShotDumper:
                 LOGGER.log(logging.ERROR, "Device %d removed from list due to activation error" % n)
                 print_exception_info()
             n += 1
-        if count <= 0 :
+        if count <= 0:
             LOGGER.log(logging.CRITICAL, "No active devices")
             return
         # main loop
         print("%s Waiting for next shot ..." % self.time_stamp())
-        while True :
-            try :
+        while True:
+            try:
                 new_shot = False
                 for item in DEVICE_LIST:
-                    try :
+                    try:
                         # reactivate all items
                         item.activate()
                         # check for new shot
