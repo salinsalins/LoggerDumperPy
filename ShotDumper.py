@@ -556,6 +556,7 @@ class AdlinkADC:
         self.devProxy = None
         self.db = None
         self.x_data = None
+        self.shot_time = time.time()
 
     def get_name(self):
         return "%s:%d/%s" % (self.host, self.port, self.name)
@@ -583,6 +584,14 @@ class AdlinkADC:
             return shot
         except:
             return -1
+
+    def read_shot_time(self):
+        elapsed = self.devProxy.read_attribute('Elapsed')
+        t0 = time.time()
+        if elapsed.quality != tango._tango.AttrQuality.ATTR_VALID:
+            logger.info('Non Valid attribute %s %s' % (elapsed.name, elapsed.quality))
+        self.shot_time = t0 - elapsed.value
+        return self.shot_time
 
     def new_shot(self):
         ns = self.read_shot()
@@ -668,6 +677,9 @@ class AdlinkADC:
                     format = '%6.2f'
                 outstr = "; %s = "%mark_name + format%mark_value + " %s"%unit
                 log_file.write(outstr)
+        outstr = "; SHOT_TIME = %f" % self.read_shot_time()
+        log_file.write(outstr)
+
 
     def save(self, log_file, zip_file):
         atts = self.devProxy.get_attribute_list()
@@ -1146,11 +1158,11 @@ class ShotDumper:
             return
         # main loop
         print("%s Waiting for next shot ..." % self.time_stamp())
-        while True :
-            try :
+        while True:
+            try:
                 new_shot = False
                 for item in devices_list:
-                    try :
+                    try:
                         # reactivate all items
                         item.activate()
                         # check for new shot
