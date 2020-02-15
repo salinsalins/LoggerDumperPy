@@ -10,6 +10,7 @@ import zipfile
 import numpy
 import tango
 
+
 def config_logger(name: str=__name__, level: int=logging.DEBUG):
     logger = logging.getLogger(name)
     if not logger.hasHandlers():
@@ -22,6 +23,7 @@ def config_logger(name: str=__name__, level: int=logging.DEBUG):
         logger.addHandler(console_handler)
     return logger
 
+
 # Configure logging
 LOGGER = config_logger()
 
@@ -33,8 +35,10 @@ CONFIG_FILE_NAME = PROG_NAME_SHORT + ".json"
 CONFIG = {}
 DEVICE_LIST = []
 
+
 def print_exception_info(level=logging.DEBUG):
     LOGGER.log(level, "Exception ", exc_info=True)
+
 
 def convert_to_buf(x, y, avgc, fmt='%f; %f'):
         xs = 0.0
@@ -383,10 +387,10 @@ class AdlinkADC:
                         # Save signal properties
                         if sdf or slf:
                             self.save_prop(zip_file, chan)
+                            chan.read_data()
+                            self.save_log(log_file, chan)
                             if sdf:
-                                chan.read_data()
                                 self.save_data(zip_file, chan)
-                                self.save_log(log_file, chan)
                         break
                     except:
                         LOGGER.log(logging.WARNING, "Adlink %s data save exception" % self.get_name())
@@ -481,12 +485,11 @@ class TangoAttribute:
                 t = history[0].time.tv_sec + (1.0e-6 * history[0].time.tv_usec) + (1.0e-9 * history[0].time.tv_nsec)
                 if time.time() - t >= (self.ahead - 0.1):
                     self.attr = history[0]
-                    LOGGER.debug('Read from ahead buffer sucessful')
+                    LOGGER.debug('Read from ahead buffer successful')
                 else:
                     LOGGER.debug('Can not read from ahead buffer')
         except:
             LOGGER.debug('Exception in read_attribute', exc_info=True)
-
 
     def get_name(self):
         return "%s/%s" % (self.dev, self.name)
@@ -811,10 +814,9 @@ class ShotDumper:
                     if 'eval' in unit:
                         item = eval(unit["eval"])
                         DEVICE_LIST.append(item)
-                        LOGGER.info("Device %s added" % str(unit["eval"]))
+                        LOGGER.info("%s has been added" % str(unit["eval"]))
                     else:
                         LOGGER.debug("No 'eval' option for device %s" % unit)
-
                 except:
                     LOGGER.log(logging.WARNING, "Error in device processing %s" % str(unit))
                     print_exception_info()
