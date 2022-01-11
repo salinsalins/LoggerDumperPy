@@ -1,146 +1,18 @@
 {
     "sleep": 1.0,
-    "Loglevel": 40,
+    "Loglevel": 10,
     "outDir": "D:\\data\\",
     "devices": [
         {
-            "eval": "AdlinkADC(dev='binp/nbi/adc0', avg=100, folder='ADC_0')"
+            "eval": "TestDevice(10.0, 1000, parameters=['mark_start=20', 'mark_length=20'])"
         },
         {
-            "eval": "TangoAttribute('binp/nbi/lauda', '1012', folder='example')"
+            "eval": "TestDevice(10.0, 1000)"
         },
         {
-            "eval": "TangoAttribute('binp/nbi/magnet1','current', folder='TDK')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/magnet2','current', folder='TDK')"
-        },
-        {
-            "eval": "TangoAttribute('bias','programmed_current', folder='TDK')"
-        },
-        {
-            "eval": "TangoAttribute('bias','programmed_voltage', folder='TDK')"
-        },
-        {
-            "eval": "TangoAttribute('et7000_server/test/pet2_7015','ai02', folder='Calorimeter')"
-        },
-        {
-            "eval": "TangoAttribute('et7000_server/test/pet2_7015','ai06', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('et7000_server/test/pet2_7015','ai05', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('et7000_server/test/pet2_7015','ai00', folder='Cs2')"
-        },
-        {
-            "eval": "TangoAttribute('et7000_server/test/pet2_7015','ai01', folder='Cs2')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam6','ai00', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam6','ai01', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam6','ai02', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam6','ai03', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam6','ai04', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam6','ai05', folder='Cs')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam8','ai00', folder='Cs1')"
-        },
-        {
-            "eval": "TangoAttribute('binp/nbi/adam8','ai01', folder='Cs1')"
-        },
-        {
-            "exec": "from peak2peak import TangoAttributepeak2peak",
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai00', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai01', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai02', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai03', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai04', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai05', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai06', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/1','ai07', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai00', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai01', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai02', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai03', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai04', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai05', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai06', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet3_7018','ai07', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet12_7018','ai00', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet12_7018','ai01', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet12_7018','ai02', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet12_7018','ai03', folder='BCandBPM')"
-        },
-        {
-            "exec": "from maxhistory import TangoAttributemax",
-            "eval": "TangoAttributemax('et7000_server/test/1','ai09', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributemax('et7000_server/test/pet7_7026','ai05', folder='Calorimeter')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet7_7026','ai00', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet7_7026','ai01', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet7_7026','ai02', folder='BCandBPM')"
-        },
-        {
-            "eval": "TangoAttributepeak2peak('et7000_server/test/pet7_7026','ai03', folder='BCandBPM')"
+            "eval": "TestDevice(10.0, 1000)"
         }
     ],
-    "shot": 7340,
-    "shot_time": "2020-02-17 18:28:00"
+    "shot": 7431,
+    "shot_time": "2022-01-11 12:58:06"
 }

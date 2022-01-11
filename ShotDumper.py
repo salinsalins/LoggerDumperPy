@@ -85,13 +85,17 @@ def convert_to_buf(x, y, avgc, fmt='%f; %f'):
 
 class TestDevice:
     n = 0
-    def __init__(self, delta_t=-1.0, points=0):
+    def __init__(self, delta_t=-1.0, points=0, parameters=None):
         self.n = TestDevice.n
         self.time = time.time()
         self.shot = 0
         self.active = False
         self.delta_t = delta_t
         self.points = points
+        if parameters is None:
+            self.parameters = []
+        else:
+            self.parameters = parameters
         TestDevice.n += 1
 
     def get_name(self):
@@ -109,7 +113,7 @@ class TestDevice:
         return True
 
     def new_shot(self):
-        if self.delta_t >= 0.0 and (time.time() - self.time) > self.delta_t:
+        if 0.0 <= self.delta_t < (time.time() - self.time):
             self.shot += 1
             self.time = time.time()
             LOGGER.log(logging.DEBUG, "TestDevice %d - New shot %d" % (self.n, self.shot))
@@ -127,10 +131,13 @@ class TestDevice:
                 buf += s.replace(",", ".")
                 if k < self.points-1:
                     buf += '\r\n'
-            entry = "TestDev/chanTestDev_%d.txt"%self.n
+            entry = "TestDev/chanTestDev_%d.txt" % self.n
             zip_file.writestr(entry, buf)
-            entry = "TestDev/paramchanTestDev_%d.txt"%self.n
-            zip_file.writestr(entry, "name=TestDev_%d\r\nxlabel=Point number"%self.n)
+            entry = "TestDev/paramchanTestDev_%d.txt" % self.n
+            text = "name=TestDev_%d\r\nxlabel=Point number" % self.n
+            for p in self.parameters:
+                text += '\r\n' + str(p)
+            zip_file.writestr(entry, text)
 
 
 class AdlinkADC:
