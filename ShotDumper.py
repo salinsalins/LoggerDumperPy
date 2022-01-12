@@ -40,7 +40,7 @@ def print_exception_info(level=logging.DEBUG):
     LOGGER.log(level, "Exception ", exc_info=True)
 
 
-def convert_to_buf(x, y, avgc, fmt='%f; %f'):
+def convert_to_buf(x, y, avgc=1, fmt='%f; %f'):
         xs = 0.0
         ys = 0.0
         ns = 0.0
