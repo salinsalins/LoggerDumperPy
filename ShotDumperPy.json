@@ -1,6 +1,6 @@
 {
     "sleep": 1.0,
-    "Loglevel": 10,
+    "Loglevel": 20,
     "outDir": "D:\\data\\",
     "devices": [
         {
@@ -13,6 +13,6 @@
             "eval": "TestDevice(10.0, 1000)"
         }
     ],
-    "shot": 7431,
-    "shot_time": "2022-01-11 12:58:06"
+    "shot": 14824,
+    "shot_time": "2022-01-12 14:26:21"
 }
